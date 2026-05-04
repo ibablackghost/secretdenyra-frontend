@@ -24,6 +24,11 @@ export const Footer = () => {
             <Link to="/shop" className="hover:text-[#a4a374] transition-colors">Cafés</Link>
             <Link to="/shop" className="hover:text-[#a4a374] transition-colors">Accessoires</Link>
             <Link to="/shop" className="hover:text-[#a4a374] transition-colors uppercase">Votre MARQUE</Link>
+            <span className="pt-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Compte</span>
+            <Link to="/login" className="hover:text-[#a4a374] transition-colors">Connexion</Link>
+            <Link to="/register" className="hover:text-[#a4a374] transition-colors">Créer un compte</Link>
+            <Link to="/account" className="hover:text-[#a4a374] transition-colors">Mon compte</Link>
+            <Link to="/wishlist" className="hover:text-[#a4a374] transition-colors">Liste de souhaits</Link>
           </div>
 
           {/* Contact */}

@@ -1,13 +1,16 @@
 import { useParams, Link } from 'react-router';
 import { products, formatPrice } from '../data';
 import { useCartStore } from '../store/cartStore';
-import { Star, Check, Truck, RotateCcw, ShieldCheck, ArrowLeft, Plus, Minus } from 'lucide-react';
+import { useWishlistStore } from '../store/wishlistStore';
+import { Star, Check, Truck, ShieldCheck, ArrowLeft, Plus, Minus, Heart } from 'lucide-react';
 import { useState } from 'react';
 
 export const Product = () => {
   const { id } = useParams();
   const product = products.find(p => p.id === id) || products[0]; // fallback to first
-  const { addItem, updateQuantity } = useCartStore();
+  const { addItem } = useCartStore();
+  const toggleWishlist = useWishlistStore((s) => s.toggle);
+  const inWishlist = useWishlistStore((s) => s.ids.includes(product.id));
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
 
@@ -34,6 +37,14 @@ export const Product = () => {
         {/* Images Produit */}
         <div className="w-full md:w-1/2 flex flex-col gap-4">
           <div className={`${product.bgClass} w-full aspect-[4/5] sm:aspect-square rounded-[16px] flex items-center justify-center p-8 relative overflow-hidden bg-gray-50`}>
+            <button
+              type="button"
+              aria-label={inWishlist ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+              onClick={() => toggleWishlist(product.id)}
+              className="absolute right-6 top-6 z-10 flex h-12 w-12 items-center justify-center rounded-full bg-white/95 text-gray-700 shadow-md transition-colors hover:bg-white"
+            >
+              <Heart className={`h-6 w-6 ${inWishlist ? 'fill-[#c45c5c] text-[#c45c5c]' : ''}`} />
+            </button>
              <img src={product.image} alt={product.name} className="w-[85%] h-auto object-contain drop-shadow-2xl hover:scale-105 transition-transform duration-700" />
           </div>
           <div className="grid grid-cols-4 gap-4">

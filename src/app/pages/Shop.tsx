@@ -1,35 +1,58 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router';
 import { products, categories, formatPrice } from '../data';
-import { Star, SlidersHorizontal, Search, Sparkles, RotateCcw } from 'lucide-react';
+import { Star, SlidersHorizontal, Search, RotateCcw, Heart, X } from 'lucide-react';
 import { useCartStore } from '../store/cartStore';
+import { useWishlistStore } from '../store/wishlistStore';
+import { productMatchesQuery } from '../lib/search';
 
 export const Shop = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const categoryFilter = searchParams.get('category');
-  
-  const [searchQuery, setSearchQuery] = useState('');
+  const urlQ = searchParams.get('q') ?? '';
+
+  const [inputValue, setInputValue] = useState(urlQ);
   const [sortBy, setSortBy] = useState('popular');
   const [priceRange, setPriceRange] = useState([0, 50000]);
-  
+
   const { addItem } = useCartStore();
+  const toggleWishlist = useWishlistStore((s) => s.toggle);
+  const wishIds = useWishlistStore((s) => s.ids);
+
+  useEffect(() => {
+    setInputValue(urlQ);
+  }, [urlQ]);
+
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      setSearchParams(
+        (prev) => {
+          const cur = (prev.get('q') ?? '').trim();
+          const next = inputValue.trim();
+          if (cur === next) return prev;
+          const n = new URLSearchParams(prev);
+          if (next) n.set('q', next);
+          else n.delete('q');
+          return n;
+        },
+        { replace: true }
+      );
+    }, 320);
+    return () => window.clearTimeout(t);
+  }, [inputValue, setSearchParams]);
 
   const filteredProducts = useMemo(() => {
     let result = products;
-    
+
     if (categoryFilter) {
-      const categoryName = categories.find(c => c.id === categoryFilter)?.name;
+      const categoryName = categories.find((c) => c.id === categoryFilter)?.name;
       if (categoryName) {
-        result = result.filter(p => p.category.toLowerCase() === categoryName.toLowerCase());
+        result = result.filter((p) => p.category.toLowerCase() === categoryName.toLowerCase());
       }
     }
-    
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter(p => 
-        p.name.toLowerCase().includes(q) || 
-        p.ingredients.toLowerCase().includes(q)
-      );
+
+    if (inputValue.trim()) {
+      result = result.filter((p) => productMatchesQuery(p, inputValue));
     }
     
     result = result.filter(p => p.price >= priceRange[0] && p.price <= priceRange[1]);
@@ -43,7 +66,7 @@ export const Shop = () => {
     }
     
     return result;
-  }, [categoryFilter, searchQuery, priceRange, sortBy]);
+  }, [categoryFilter, inputValue, priceRange, sortBy]);
 
   return (
     <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-12 flex flex-col md:flex-row gap-12">
@@ -56,9 +79,10 @@ export const Shop = () => {
           </div>
           <button 
             onClick={() => {
-              setSearchQuery('');
+              setInputValue('');
               setPriceRange([0, 50000]);
               searchParams.delete('category');
+              searchParams.delete('q');
               setSearchParams(searchParams);
             }}
             className="w-8 h-8 flex items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:text-black hover:border-black transition-colors"
@@ -159,6 +183,46 @@ export const Shop = () => {
       {/* Main Content */}
       <div className="flex-1">
         <div className="mb-8">
+          <div className="mb-6 rounded-[12px] border border-gray-100 bg-white p-4 shadow-sm">
+            <label htmlFor="shop-search" className="mb-2 block text-xs font-semibold uppercase tracking-wider text-gray-500 font-['Mulish',sans-serif]">
+              Recherche dans cette page
+            </label>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <input
+                  id="shop-search"
+                  type="search"
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  placeholder="Nom, ingrédient, catégorie…"
+                  className="w-full rounded-[10px] border border-gray-200 py-3 pl-10 pr-10 font-['Mulish',sans-serif] text-sm outline-none focus:border-[#a4a374] focus:ring-2 focus:ring-[#a4a374]/20"
+                />
+                {inputValue && (
+                  <button
+                    type="button"
+                    aria-label="Effacer la recherche"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                    onClick={() => setInputValue('')}
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+            {inputValue.trim() ? (
+              <p className="mt-2 text-sm text-gray-600 font-['Mulish',sans-serif]">
+                {filteredProducts.length} résultat{filteredProducts.length !== 1 ? 's' : ''} pour «{' '}
+                <span className="font-semibold text-[#1a1a1a]">{inputValue.trim()}</span> » (accents ignorés)
+              </p>
+            ) : (
+              <p className="mt-2 text-xs text-gray-400 font-['Mulish',sans-serif]">
+                La recherche du bandeau du haut ouvre aussi cette page avec le même filtre (<code className="rounded bg-gray-100 px-1">?q=</code>
+                ).
+              </p>
+            )}
+          </div>
+
           {/* Breadcrumbs */}
           <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
             <Link to="/" className="hover:text-black transition-colors">Home</Link>
@@ -191,13 +255,35 @@ export const Shop = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredProducts.map((product) => (
               <div key={product.id} className="group flex flex-col gap-4">
-                <Link to={`/product/${product.id}`} className={`relative ${product.bgClass} aspect-[4/5] rounded-[10px] p-4 flex items-center justify-center overflow-hidden transition-transform group-hover:scale-[1.02]`}>
-                  <div className="absolute top-4 left-4 bg-white/80 backdrop-blur-sm px-2 py-1 rounded-[4px] flex items-center gap-1">
-                    <Star className="w-3 h-3 fill-current text-black" />
-                    <span className="text-xs font-bold">{product.rating}</span>
-                  </div>
-                  <img src={product.image} alt={product.name} className="w-[80%] h-auto object-contain drop-shadow-md" />
-                </Link>
+                <div className={`relative ${product.bgClass} aspect-[4/5] overflow-hidden rounded-[10px] transition-transform group-hover:scale-[1.02]`}>
+                  <Link
+                    to={`/product/${product.id}`}
+                    className="absolute inset-0 flex items-center justify-center p-4"
+                  >
+                    <div className="absolute left-4 top-4 z-[1] flex items-center gap-1 rounded-[4px] bg-white/80 px-2 py-1 backdrop-blur-sm">
+                      <Star className="h-3 w-3 fill-current text-black" />
+                      <span className="text-xs font-bold">{product.rating}</span>
+                    </div>
+                    <img
+                      src={product.image}
+                      alt={product.name}
+                      className="relative z-0 h-auto w-[80%] object-contain drop-shadow-md"
+                    />
+                  </Link>
+                  <button
+                    type="button"
+                    aria-label={wishIds.includes(product.id) ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                    className="absolute right-4 top-4 z-[2] flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-gray-600 shadow-sm transition-colors hover:bg-white"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      toggleWishlist(product.id);
+                    }}
+                  >
+                    <Heart
+                      className={`h-5 w-5 ${wishIds.includes(product.id) ? 'fill-[#c45c5c] text-[#c45c5c]' : ''}`}
+                    />
+                  </button>
+                </div>
                 
                 <div className="flex flex-col gap-1">
                   <Link to={`/product/${product.id}`}>
@@ -228,9 +314,10 @@ export const Shop = () => {
             <p className="text-gray-500">Essayez d'ajuster vos filtres ou votre recherche.</p>
             <button 
               onClick={() => {
-                setSearchQuery('');
+                setInputValue('');
                 setPriceRange([0, 50000]);
                 searchParams.delete('category');
+                searchParams.delete('q');
                 setSearchParams(searchParams);
               }}
               className="mt-6 text-[#a4a374] font-medium hover:underline"

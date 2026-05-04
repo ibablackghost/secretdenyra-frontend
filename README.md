@@ -2,10 +2,15 @@
 
 Boutique e-commerce (Vite + React + React Router + Tailwind v4), à partir du bundle design.
 
+## Documentation détaillée
+
+- **[Projet frontend](docs/nyra-frontend.md)** — stack, structure, npm/TLS, déploiement.
+- **[Intégration Strapi](docs/strapi-integration.md)** — modèles API, CORS, variables d’env, checklist.
+
 ## Structure
 
 - `src/app/App.tsx` — point d’entrée de l’application (routeur).
-- `src/app/routes.tsx` — routes : `/`, `/shop`, `/product/:id`, `/cart`.
+- `src/app/routes.tsx` — routes : `/`, `/shop`, `/product/:id`, `/cart`, `/login`, `/register`, `/account` (protégé), `/wishlist`.
 - `src/app/pages/` — pages : accueil, boutique, fiche produit, panier.
 - `src/app/data.ts` — produits et catégories (données locales ; à brancher sur Strapi plus tard).
 - `src/app/store/cartStore.ts` — état panier (Zustand).

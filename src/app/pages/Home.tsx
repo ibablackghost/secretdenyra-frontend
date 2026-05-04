@@ -2,11 +2,14 @@ import image_Gemini_Generated_Image_4hyvy04hyvy04hyv_1 from '@/imports/Gemini_Ge
 import imgLogo from 'figma:asset/04c30533fe5a9a60b6e7341851231c595d46cb74.png';
 import { Link } from 'react-router';
 import { products, categories, formatPrice } from '../data';
-import { ArrowRight, Star } from 'lucide-react';
+import { ArrowRight, Star, Heart } from 'lucide-react';
 import { useCartStore } from '../store/cartStore';
+import { useWishlistStore } from '../store/wishlistStore';
 
 const ProductGrid = ({ title }: { title: string }) => {
   const { addItem } = useCartStore();
+  const toggleWishlist = useWishlistStore((s) => s.toggle);
+  const wishIds = useWishlistStore((s) => s.ids);
   return (
     <section className="max-w-[1400px] mx-auto px-4 md:px-8 py-16">
       <div className="flex justify-between items-end mb-12">
@@ -19,14 +22,27 @@ const ProductGrid = ({ title }: { title: string }) => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
         {products.map((product) => (
           <div key={product.id} className="group flex flex-col gap-4">
-            <Link to={`/product/${product.id}`} className={`relative ${product.bgClass} aspect-[4/5] rounded-[10px] p-4 flex items-center justify-center overflow-hidden transition-transform group-hover:scale-[1.02]`}>
-              <div className="absolute top-4 left-4 bg-white/80 backdrop-blur-sm px-2 py-1 rounded-[4px] flex items-center gap-1">
-                <Star className="w-3 h-3 fill-current text-black" />
-                <span className="text-xs font-bold">{product.rating}</span>
-                <span className="text-xs text-gray-500">({product.reviews})</span>
-              </div>
-              <img src={product.image} alt={product.name} className="w-[80%] h-auto object-contain drop-shadow-md" />
-            </Link>
+            <div className={`relative ${product.bgClass} aspect-[4/5] overflow-hidden rounded-[10px] transition-transform group-hover:scale-[1.02]`}>
+              <Link to={`/product/${product.id}`} className="absolute inset-0 flex items-center justify-center p-4">
+                <div className="absolute left-4 top-4 z-[1] flex items-center gap-1 rounded-[4px] bg-white/80 px-2 py-1 backdrop-blur-sm">
+                  <Star className="h-3 w-3 fill-current text-black" />
+                  <span className="text-xs font-bold">{product.rating}</span>
+                  <span className="text-xs text-gray-500">({product.reviews})</span>
+                </div>
+                <img src={product.image} alt={product.name} className="relative z-0 h-auto w-[80%] object-contain drop-shadow-md" />
+              </Link>
+              <button
+                type="button"
+                aria-label={wishIds.includes(product.id) ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                className="absolute right-4 top-4 z-[2] flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-gray-600 shadow-sm transition-colors hover:bg-white"
+                onClick={(e) => {
+                  e.preventDefault();
+                  toggleWishlist(product.id);
+                }}
+              >
+                <Heart className={`h-5 w-5 ${wishIds.includes(product.id) ? 'fill-[#c45c5c] text-[#c45c5c]' : ''}`} />
+              </button>
+            </div>
             
             <div className="flex flex-col gap-1">
               <Link to={`/product/${product.id}`}>
@@ -54,8 +70,6 @@ const ProductGrid = ({ title }: { title: string }) => {
 };
 
 export const Home = () => {
-  const { addItem } = useCartStore();
-
   return (
     <div className="w-full pb-20">
       {/* Hero Section */}
