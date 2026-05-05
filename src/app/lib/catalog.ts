@@ -24,6 +24,11 @@ type StrapiCategory = {
   image?: StrapiMedia | { data?: StrapiEntity<StrapiMedia> };
 };
 
+type StrapiTag = {
+  name?: string;
+  slug?: string;
+};
+
 type StrapiProduct = {
   name?: string;
   slug?: string;
@@ -34,6 +39,9 @@ type StrapiProduct = {
   bgClass?: string;
   image?: StrapiMedia | { data?: StrapiEntity<StrapiMedia> };
   category?: StrapiEntity<StrapiCategory> | { data?: StrapiEntity<StrapiCategory> };
+  tags?:
+    | Array<StrapiEntity<StrapiTag>>
+    | { data?: Array<StrapiEntity<StrapiTag>> };
 };
 
 export type UICategory = {
@@ -56,7 +64,43 @@ export type UIProduct = {
     slug: string;
     name: string;
   };
+  tags: Array<{
+    slug: string;
+    name: string;
+  }>;
 };
+
+export type UITag = {
+  slug: string;
+  name: string;
+  image: string;
+};
+
+const SHOP_CATEGORY_SLUGS = new Set([
+  'secret-de-nyra',
+  'nos-thes-bio',
+  'tisanes',
+  'herboristerie',
+  'cafes',
+  'accessoires',
+]);
+
+const TEA_FAMILY_TAG_SLUGS = new Set([
+  'the-noir',
+  'the-blanc',
+  'infusion',
+  'the-vert',
+  'bien-etre',
+]);
+
+/** Ordre affiché sur la home « Nos familles de thé » — toujours 5 entrées dont Infusion */
+const TEA_FAMILY_TAGS_DISPLAY_ORDER: Array<{ slug: string; defaultName: string }> = [
+  { slug: 'the-noir', defaultName: 'Thé noir' },
+  { slug: 'the-blanc', defaultName: 'Thé blanc' },
+  { slug: 'infusion', defaultName: 'Infusion' },
+  { slug: 'the-vert', defaultName: 'Thé vert' },
+  { slug: 'bien-etre', defaultName: 'Bien-être' },
+];
 
 const categoryImageBySlug: Record<string, string> = {
   'the-noir': imgTheNoir,
@@ -90,6 +134,20 @@ function unwrapEntity<T>(value: unknown): StrapiEntity<T> | undefined {
     return asEntity<T>(entity.data);
   }
   return entity;
+}
+
+function unwrapEntityList<T>(value: unknown): Array<StrapiEntity<T>> {
+  if (!value) return [];
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => asEntity<T>(item))
+      .filter((item): item is StrapiEntity<T> => Boolean(item));
+  }
+  const entity = asEntity<{ data?: Array<StrapiEntity<T>> }>(value);
+  if (!entity?.data || !Array.isArray(entity.data)) return [];
+  return entity.data
+    .map((item) => asEntity<T>(item))
+    .filter((item): item is StrapiEntity<T> => Boolean(item));
 }
 
 function readField<T>(entity: StrapiEntity<T> | undefined, key: keyof T): unknown {
@@ -154,6 +212,14 @@ function mapProduct(entity: StrapiEntity<StrapiProduct>): UIProduct | null {
   const categoryEntity = unwrapEntity<StrapiCategory>(readField(entity, 'category'));
   const categorySlug = getString(readField(categoryEntity, 'slug'));
   const categoryName = getString(readField(categoryEntity, 'name'));
+  const tags = unwrapEntityList<StrapiTag>(readField(entity, 'tags'))
+    .map((tagEntity) => {
+      const slug = getString(readField(tagEntity, 'slug'));
+      const name = getString(readField(tagEntity, 'name'));
+      if (!slug || !name) return null;
+      return { slug, name };
+    })
+    .filter((item): item is { slug: string; name: string } => Boolean(item));
 
   if (!slug || !name || !categorySlug) return null;
 
@@ -174,12 +240,14 @@ function mapProduct(entity: StrapiEntity<StrapiProduct>): UIProduct | null {
       slug: categorySlug,
       name: categoryName || categorySlug,
     },
+    tags,
   };
 }
 
 export type CatalogPayload = {
   products: UIProduct[];
   categories: UICategory[];
+  tags: UITag[];
 };
 
 export async function fetchCatalog(): Promise<CatalogPayload> {
@@ -189,7 +257,7 @@ export async function fetchCatalog(): Promise<CatalogPayload> {
 
   const [productsRes, categoriesRes] = await Promise.all([
     fetch(
-      `${STRAPI_URL}/api/products?populate[category]=true&populate[image]=true`
+      `${STRAPI_URL}/api/products?populate[category]=true&populate[image]=true&populate[tags]=true`
     ),
     fetch(`${STRAPI_URL}/api/categories`),
   ]);
@@ -208,9 +276,49 @@ export async function fetchCatalog(): Promise<CatalogPayload> {
     .map((item) => mapProduct(item))
     .filter((item): item is UIProduct => Boolean(item));
 
-  const categories = (categoriesJson.data ?? [])
+  const rawCategories = (categoriesJson.data ?? [])
     .map((item) => mapCategory(item))
     .filter((item): item is UICategory => Boolean(item));
 
-  return { products, categories };
+  const categories = rawCategories.filter((item) =>
+    SHOP_CATEGORY_SLUGS.has(item.slug)
+  );
+  const tagsFromCategories = rawCategories
+    .filter((item) => TEA_FAMILY_TAG_SLUGS.has(item.slug))
+    .map((item) => ({
+      slug: item.slug,
+      name: item.name,
+      image: categoryImageBySlug[item.slug] ?? imgInfusion,
+    }));
+
+  const tagMap = new Map<string, UITag>();
+  tagsFromCategories.forEach((tag) => {
+    tagMap.set(tag.slug, {
+      slug: tag.slug,
+      name: tag.name,
+      image: tag.image,
+    });
+  });
+  products.forEach((product) => {
+    product.tags.forEach((tag) => {
+      tagMap.set(tag.slug, {
+        slug: tag.slug,
+        name: tag.name,
+        image: categoryImageBySlug[tag.slug] ?? imgInfusion,
+      });
+    });
+  });
+
+  const tags = TEA_FAMILY_TAGS_DISPLAY_ORDER.map(({ slug, defaultName }) => {
+    const existing = tagMap.get(slug);
+    return (
+      existing ?? {
+        slug,
+        name: defaultName,
+        image: categoryImageBySlug[slug] ?? imgInfusion,
+      }
+    );
+  });
+
+  return { products, categories, tags };
 }

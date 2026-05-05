@@ -9,6 +9,7 @@ type CatalogState = CatalogPayload & {
 const initialState: CatalogState = {
   products: [],
   categories: [],
+  tags: [],
   loading: true,
   error: null,
 };
@@ -21,15 +22,16 @@ export function useCatalog() {
     setState((prev) => ({ ...prev, loading: true, error: null }));
 
     fetchCatalog()
-      .then(({ products, categories }) => {
+      .then(({ products, categories, tags }) => {
         if (!mounted) return;
-        setState({ products, categories, loading: false, error: null });
+        setState({ products, categories, tags, loading: false, error: null });
       })
       .catch((error: unknown) => {
         if (!mounted) return;
         setState({
           products: [],
           categories: [],
+          tags: [],
           loading: false,
           error: error instanceof Error ? error.message : 'Erreur inconnue.',
         });

@@ -57,7 +57,7 @@ export const Header = () => {
         </Link>
 
         <nav className="hidden lg:flex items-center gap-8 font-['Mulish',sans-serif] text-sm font-medium text-black flex-1 justify-center">
-          <Link to="/" className="hover:text-[#a4a374] transition-colors">
+          <Link to="/shop?category=secret-de-nyra" className="hover:text-[#a4a374] transition-colors">
             Secret de Nyra
           </Link>
           <Link to="/shop?category=nos-thes-bio" className="hover:text-[#a4a374] transition-colors">
@@ -119,7 +119,7 @@ export const Header = () => {
       {mobileMenuOpen && (
         <div className="lg:hidden border-t border-gray-100 bg-white nyra-menu-enter">
           <nav className="max-w-[1400px] mx-auto px-4 py-4 flex flex-col gap-1 font-['Mulish',sans-serif]">
-            <Link to="/" className="px-3 py-2 rounded-md hover:bg-gray-50 transition-colors">
+            <Link to="/shop?category=secret-de-nyra" className="px-3 py-2 rounded-md hover:bg-gray-50 transition-colors">
               Secret de Nyra
             </Link>
             <Link to="/shop?category=nos-thes-bio" className="px-3 py-2 rounded-md hover:bg-gray-50 transition-colors">

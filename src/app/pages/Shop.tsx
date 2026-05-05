@@ -9,7 +9,8 @@ import { formatPrice } from '../lib/price';
 
 export const Shop = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const categoryFilter = searchParams.get('category');
+  const categoryFilter = searchParams.get('category') ?? searchParams.get('tag');
+  const teaFamilyTagFilter = searchParams.get('teaTag');
   const urlQ = searchParams.get('q') ?? '';
 
   const [inputValue, setInputValue] = useState(urlQ);
@@ -19,7 +20,7 @@ export const Shop = () => {
   const { addItem } = useCartStore();
   const toggleWishlist = useWishlistStore((s) => s.toggle);
   const wishIds = useWishlistStore((s) => s.ids);
-  const { products, categories, loading, error } = useCatalog();
+  const { products, categories, tags, loading, error } = useCatalog();
 
   useEffect(() => {
     setInputValue(urlQ);
@@ -50,6 +51,12 @@ export const Shop = () => {
       result = result.filter((p) => p.category.slug === categoryFilter);
     }
 
+    if (teaFamilyTagFilter) {
+      result = result.filter((p) =>
+        p.tags.some((tag) => tag.slug === teaFamilyTagFilter)
+      );
+    }
+
     if (inputValue.trim()) {
       result = result.filter((p) => productMatchesQuery(p, inputValue));
     }
@@ -65,7 +72,7 @@ export const Shop = () => {
     }
     
     return result;
-  }, [categoryFilter, inputValue, priceRange, sortBy]);
+  }, [categoryFilter, teaFamilyTagFilter, inputValue, priceRange, sortBy, products]);
 
   return (
     <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-12 flex flex-col md:flex-row gap-12">
@@ -80,7 +87,9 @@ export const Shop = () => {
             onClick={() => {
               setInputValue('');
               setPriceRange([0, 50000]);
+              searchParams.delete('tag');
               searchParams.delete('category');
+              searchParams.delete('teaTag');
               searchParams.delete('q');
               setSearchParams(searchParams);
             }}
@@ -139,9 +148,9 @@ export const Shop = () => {
           </div>
         </div>
 
-        {/* Familles */}
+        {/* Categories */}
         <div className="space-y-4">
-          <h3 className="font-bold text-lg text-[#1a1a1a] font-['Mulish',sans-serif]">Familles</h3>
+          <h3 className="font-bold text-lg text-[#1a1a1a] font-['Mulish',sans-serif]">Catégories</h3>
           <div className="flex flex-col gap-3">
             <label className="flex items-center gap-3 cursor-pointer group">
               <input 
@@ -149,6 +158,7 @@ export const Shop = () => {
                 name="category"
                 checked={!categoryFilter}
                 onChange={() => {
+                  searchParams.delete('tag');
                   searchParams.delete('category');
                   setSearchParams(searchParams);
                 }}
@@ -166,6 +176,7 @@ export const Shop = () => {
                   checked={categoryFilter === cat.slug}
                   onChange={() => {
                     searchParams.set('category', cat.slug);
+                    searchParams.delete('tag');
                     setSearchParams(searchParams);
                   }}
                   className="w-4 h-4 text-black border-gray-300 focus:ring-black cursor-pointer accent-black"
@@ -177,6 +188,47 @@ export const Shop = () => {
             ))}
           </div>
         </div>
+
+        {/* Tags (Famille de thé) */}
+        {tags.length > 0 && (
+          <div className="space-y-4">
+            <h3 className="font-bold text-lg text-[#1a1a1a] font-['Mulish',sans-serif]">Famille de thé (tags)</h3>
+            <div className="flex flex-col gap-3">
+              <label className="flex items-center gap-3 cursor-pointer group">
+                <input
+                  type="radio"
+                  name="teaTag"
+                  checked={!teaFamilyTagFilter}
+                  onChange={() => {
+                    searchParams.delete('teaTag');
+                    setSearchParams(searchParams);
+                  }}
+                  className="w-4 h-4 text-black border-gray-300 focus:ring-black cursor-pointer accent-black"
+                />
+                <span className={`text-sm ${!teaFamilyTagFilter ? 'font-bold text-black' : 'text-gray-600 group-hover:text-black'}`}>
+                  Tous les tags
+                </span>
+              </label>
+              {tags.map((tag) => (
+                <label key={tag.slug} className="flex items-center gap-3 cursor-pointer group">
+                  <input
+                    type="radio"
+                    name="teaTag"
+                    checked={teaFamilyTagFilter === tag.slug}
+                    onChange={() => {
+                      searchParams.set('teaTag', tag.slug);
+                      setSearchParams(searchParams);
+                    }}
+                    className="w-4 h-4 text-black border-gray-300 focus:ring-black cursor-pointer accent-black"
+                  />
+                  <span className={`text-sm ${teaFamilyTagFilter === tag.slug ? 'font-bold text-black' : 'text-gray-600 group-hover:text-black'}`}>
+                    {tag.name}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
       </aside>
 
       {/* Main Content */}
@@ -194,7 +246,7 @@ export const Shop = () => {
                   type="search"
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
-                  placeholder="Nom, ingrédient, catégorie…"
+                  placeholder="Nom, ingrédient, catégorie, tag…"
                   className="w-full rounded-[10px] border border-gray-200 py-3 pl-10 pr-10 font-['Mulish',sans-serif] text-sm outline-none focus:border-[#a4a374] focus:ring-2 focus:ring-[#a4a374]/20"
                 />
                 {inputValue && (
@@ -319,7 +371,9 @@ export const Shop = () => {
               onClick={() => {
                 setInputValue('');
                 setPriceRange([0, 50000]);
+                searchParams.delete('tag');
                 searchParams.delete('category');
+                searchParams.delete('teaTag');
                 searchParams.delete('q');
                 setSearchParams(searchParams);
               }}

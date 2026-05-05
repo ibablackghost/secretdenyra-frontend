@@ -75,7 +75,7 @@ const ProductGrid = ({ title, products }: { title: string; products: UIProduct[]
 };
 
 export const Home = () => {
-  const { products, categories, loading, error } = useCatalog();
+  const { products, tags, loading, error } = useCatalog();
 
   return (
     <div className="w-full pb-20">
@@ -119,7 +119,7 @@ export const Home = () => {
         <ProductGrid title="Les favoris de nos clients" products={products} />
       )}
 
-      {/* Categories */}
+      {/* Tea Family Tags */}
       <section className="max-w-[1400px] mx-auto px-4 md:px-8 py-16 bg-[#fcfcfc]">
         <div className="flex justify-between items-end mb-12">
           <h2 className="font-['Mulish',sans-serif] text-2xl md:text-3xl font-semibold text-[#303030]">Nos familles de thé</h2>
@@ -129,9 +129,9 @@ export const Home = () => {
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
-          {categories.map((cat, index) => (
+          {tags.map((cat, index) => (
             <Link
-              to={`/shop?category=${cat.slug}`}
+              to={`/shop?teaTag=${cat.slug}`}
               key={cat.slug}
               className="flex flex-col items-center gap-4 group nyra-reveal"
               style={{ animationDelay: `${index * 60}ms` }}
