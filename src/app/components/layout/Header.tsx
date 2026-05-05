@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
-import { ShoppingBag, Search, User, Globe, Heart } from 'lucide-react';
+import { ShoppingBag, Search, User, Globe, Heart, Menu, X } from 'lucide-react';
 import { useCartStore } from '../../store/cartStore';
 import { useAuthStore } from '../../store/authStore';
 import { useWishlistStore } from '../../store/wishlistStore';
@@ -15,11 +15,16 @@ export const Header = () => {
   const wishCount = useWishlistStore((s) => s.ids.length);
 
   const [headerQ, setHeaderQ] = useState('');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const q = params.get('q') ?? '';
     if (location.pathname === '/shop') setHeaderQ(q);
+  }, [location.pathname, location.search]);
+
+  useEffect(() => {
+    setMobileMenuOpen(false);
   }, [location.pathname, location.search]);
 
   const runSearch = (e?: FormEvent) => {
@@ -99,8 +104,45 @@ export const Header = () => {
               </span>
             )}
           </Link>
+          <button
+            type="button"
+            className="lg:hidden flex p-2 hover:bg-gray-50 rounded-full transition-colors"
+            aria-label={mobileMenuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
+            aria-expanded={mobileMenuOpen}
+            onClick={() => setMobileMenuOpen((prev) => !prev)}
+          >
+            {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
         </div>
       </div>
+
+      {mobileMenuOpen && (
+        <div className="lg:hidden border-t border-gray-100 bg-white">
+          <nav className="max-w-[1400px] mx-auto px-4 py-4 flex flex-col gap-1 font-['Mulish',sans-serif]">
+            <Link to="/" className="px-3 py-2 rounded-md hover:bg-gray-50 transition-colors">
+              Secret de Nyra
+            </Link>
+            <Link to="/shop?category=nos-thes-bio" className="px-3 py-2 rounded-md hover:bg-gray-50 transition-colors">
+              Nos thés bio
+            </Link>
+            <Link to="/shop?category=tisanes" className="px-3 py-2 rounded-md hover:bg-gray-50 transition-colors">
+              Tisanes
+            </Link>
+            <Link to="/shop?category=herboristerie" className="px-3 py-2 rounded-md hover:bg-gray-50 transition-colors">
+              Herboristerie
+            </Link>
+            <Link to="/shop?category=cafes" className="px-3 py-2 rounded-md hover:bg-gray-50 transition-colors">
+              Cafés
+            </Link>
+            <Link to="/shop?category=accessoires" className="px-3 py-2 rounded-md hover:bg-gray-50 transition-colors">
+              Accessoires
+            </Link>
+            <Link to="/shop" className="px-3 py-2 rounded-md hover:bg-gray-50 transition-colors uppercase tracking-wider">
+              VOTRE MARQUE
+            </Link>
+          </nav>
+        </div>
+      )}
 
       <div className="border-t border-gray-50 bg-[#fafafa]">
         <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-3">
