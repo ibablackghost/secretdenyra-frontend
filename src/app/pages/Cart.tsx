@@ -1,15 +1,19 @@
 import { Link } from 'react-router';
 import { useCartStore } from '../store/cartStore';
-import { products, formatPrice } from '../data';
 import { Trash2, ArrowRight, Minus, Plus, ShoppingBag } from 'lucide-react';
+import { useCatalog } from '../lib/useCatalog';
+import { formatPrice } from '../lib/price';
 
 export const Cart = () => {
   const { items, removeItem, updateQuantity } = useCartStore();
+  const { products, loading, error } = useCatalog();
 
-  const cartProducts = items.map(item => {
-    const product = products.find(p => p.id === item.productId)!;
-    return { ...product, quantity: item.quantity };
-  });
+  const cartProducts = items
+    .map((item) => {
+      const product = products.find((p) => p.id === item.productId);
+      return product ? { ...product, quantity: item.quantity } : null;
+    })
+    .filter((item): item is NonNullable<typeof item> => Boolean(item));
 
   const subtotal = cartProducts.reduce((acc, item) => acc + (item.price * item.quantity), 0);
   const shipping = subtotal > 45000 || subtotal === 0 ? 0 : 2500;
@@ -28,6 +32,14 @@ export const Cart = () => {
         </Link>
       </div>
     );
+  }
+
+  if (loading) {
+    return <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-16 text-gray-500">Chargement du panier...</div>;
+  }
+
+  if (error) {
+    return <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-16 text-red-600">{error}</div>;
   }
 
   return (

@@ -1,14 +1,24 @@
 import { Link } from 'react-router';
 import { Heart, Star } from 'lucide-react';
-import { products, formatPrice } from '../data';
 import { useWishlistStore } from '../store/wishlistStore';
 import { useCartStore } from '../store/cartStore';
+import { useCatalog } from '../lib/useCatalog';
+import { formatPrice } from '../lib/price';
 export const Wishlist = () => {
   const ids = useWishlistStore((s) => s.ids);
   const toggle = useWishlistStore((s) => s.toggle);
   const addItem = useCartStore((s) => s.addItem);
+  const { products, loading, error } = useCatalog();
 
   const wishProducts = products.filter((p) => ids.includes(p.id));
+
+  if (loading) {
+    return <div className="mx-auto max-w-[1400px] px-4 py-12 md:py-16 text-gray-500">Chargement des favoris...</div>;
+  }
+
+  if (error) {
+    return <div className="mx-auto max-w-[1400px] px-4 py-12 md:py-16 text-red-600">{error}</div>;
+  }
 
   return (
     <div className="mx-auto max-w-[1400px] px-4 py-12 md:py-16">
@@ -61,7 +71,7 @@ export const Wishlist = () => {
           {wishProducts.map((product) => (
             <div key={product.id} className="group flex flex-col gap-4">
               <Link
-                to={`/product/${product.id}`}
+                to={`/product/${product.slug}`}
                 className={`relative ${product.bgClass} aspect-[4/5] overflow-hidden rounded-[10px] p-4 transition-transform group-hover:scale-[1.02]`}
               >
                 <button
@@ -86,7 +96,7 @@ export const Wishlist = () => {
                 />
               </Link>
               <div>
-                <Link to={`/product/${product.id}`}>
+                <Link to={`/product/${product.slug}`}>
                   <h3 className="font-medium text-[#1a1a1a] transition-colors group-hover:text-[#a4a374]">
                     {product.name}
                   </h3>

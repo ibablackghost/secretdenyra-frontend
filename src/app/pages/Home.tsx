@@ -1,12 +1,14 @@
 import image_Gemini_Generated_Image_4hyvy04hyvy04hyv_1 from '@/imports/Gemini_Generated_Image_4hyvy04hyvy04hyv_1.png';
 import imgLogo from 'figma:asset/04c30533fe5a9a60b6e7341851231c595d46cb74.png';
 import { Link } from 'react-router';
-import { products, categories, formatPrice } from '../data';
 import { ArrowRight, Star, Heart } from 'lucide-react';
 import { useCartStore } from '../store/cartStore';
 import { useWishlistStore } from '../store/wishlistStore';
+import { UIProduct } from '../lib/catalog';
+import { useCatalog } from '../lib/useCatalog';
+import { formatPrice } from '../lib/price';
 
-const ProductGrid = ({ title }: { title: string }) => {
+const ProductGrid = ({ title, products }: { title: string; products: UIProduct[] }) => {
   const { addItem } = useCartStore();
   const toggleWishlist = useWishlistStore((s) => s.toggle);
   const wishIds = useWishlistStore((s) => s.ids);
@@ -23,7 +25,7 @@ const ProductGrid = ({ title }: { title: string }) => {
         {products.map((product) => (
           <div key={product.id} className="group flex flex-col gap-4">
             <div className={`relative ${product.bgClass} aspect-[4/5] overflow-hidden rounded-[10px] transition-transform group-hover:scale-[1.02]`}>
-              <Link to={`/product/${product.id}`} className="absolute inset-0 flex items-center justify-center p-4">
+              <Link to={`/product/${product.slug}`} className="absolute inset-0 flex items-center justify-center p-4">
                 <div className="absolute left-4 top-4 z-[1] flex items-center gap-1 rounded-[4px] bg-white/80 px-2 py-1 backdrop-blur-sm">
                   <Star className="h-3 w-3 fill-current text-black" />
                   <span className="text-xs font-bold">{product.rating}</span>
@@ -45,7 +47,7 @@ const ProductGrid = ({ title }: { title: string }) => {
             </div>
             
             <div className="flex flex-col gap-1">
-              <Link to={`/product/${product.id}`}>
+              <Link to={`/product/${product.slug}`}>
                 <h3 className="font-medium text-[#1a1a1a] group-hover:text-[#a4a374] transition-colors">{product.name}</h3>
                 <p className="text-xs text-gray-500 truncate">{product.ingredients}</p>
               </Link>
@@ -70,6 +72,8 @@ const ProductGrid = ({ title }: { title: string }) => {
 };
 
 export const Home = () => {
+  const { products, categories, loading, error } = useCatalog();
+
   return (
     <div className="w-full pb-20">
       {/* Hero Section */}
@@ -100,7 +104,17 @@ export const Home = () => {
       </section>
 
       {/* Featured Products */}
-      <ProductGrid title="Les favoris de nos clients" />
+      {loading ? (
+        <section className="max-w-[1400px] mx-auto px-4 md:px-8 py-16">
+          <p className="text-gray-500">Chargement des produits...</p>
+        </section>
+      ) : error ? (
+        <section className="max-w-[1400px] mx-auto px-4 md:px-8 py-16">
+          <p className="text-red-600">{error}</p>
+        </section>
+      ) : (
+        <ProductGrid title="Les favoris de nos clients" products={products} />
+      )}
 
       {/* Categories */}
       <section className="max-w-[1400px] mx-auto px-4 md:px-8 py-16 bg-[#fcfcfc]">
@@ -113,7 +127,7 @@ export const Home = () => {
 
         <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
           {categories.map((cat) => (
-            <Link to={`/shop?category=${cat.id}`} key={cat.id} className="flex flex-col items-center gap-4 group">
+            <Link to={`/shop?category=${cat.slug}`} key={cat.slug} className="flex flex-col items-center gap-4 group">
               <div className="w-full aspect-square rounded-full bg-white shadow-sm overflow-hidden flex items-center justify-center p-4 border border-gray-100 group-hover:border-[#a4a374] transition-colors">
                 <img src={cat.image} alt={cat.name} className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-300" />
               </div>
@@ -124,7 +138,7 @@ export const Home = () => {
       </section>
 
       {/* Best Sellers */}
-      <ProductGrid title="Nos meilleures ventes" />
+      {!loading && !error && <ProductGrid title="Nos meilleures ventes" products={products} />}
       
       {/* Promo Block */}
       <section className="max-w-[1400px] mx-auto px-4 md:px-8 py-20">
@@ -159,10 +173,10 @@ export const Home = () => {
       </section>
 
       {/* Popular Products */}
-      <ProductGrid title="Produits populaires" />
+      {!loading && !error && <ProductGrid title="Produits populaires" products={products} />}
 
       {/* Recently Viewed */}
-      <ProductGrid title="Produits auquel vous avez cliqué" />
+      {!loading && !error && <ProductGrid title="Produits auquel vous avez cliqué" products={products} />}
     </div>
   );
 };

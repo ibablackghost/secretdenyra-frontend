@@ -1,10 +1,11 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router';
-import { products, categories, formatPrice } from '../data';
 import { Star, SlidersHorizontal, Search, RotateCcw, Heart, X } from 'lucide-react';
 import { useCartStore } from '../store/cartStore';
 import { useWishlistStore } from '../store/wishlistStore';
 import { productMatchesQuery } from '../lib/search';
+import { useCatalog } from '../lib/useCatalog';
+import { formatPrice } from '../lib/price';
 
 export const Shop = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -18,6 +19,7 @@ export const Shop = () => {
   const { addItem } = useCartStore();
   const toggleWishlist = useWishlistStore((s) => s.toggle);
   const wishIds = useWishlistStore((s) => s.ids);
+  const { products, categories, loading, error } = useCatalog();
 
   useEffect(() => {
     setInputValue(urlQ);
@@ -42,13 +44,10 @@ export const Shop = () => {
   }, [inputValue, setSearchParams]);
 
   const filteredProducts = useMemo(() => {
-    let result = products;
+    let result = [...products];
 
     if (categoryFilter) {
-      const categoryName = categories.find((c) => c.id === categoryFilter)?.name;
-      if (categoryName) {
-        result = result.filter((p) => p.category.toLowerCase() === categoryName.toLowerCase());
-      }
+      result = result.filter((p) => p.category.slug === categoryFilter);
     }
 
     if (inputValue.trim()) {
@@ -160,18 +159,18 @@ export const Shop = () => {
               </span>
             </label>
             {categories.map(cat => (
-              <label key={cat.id} className="flex items-center gap-3 cursor-pointer group">
+              <label key={cat.slug} className="flex items-center gap-3 cursor-pointer group">
                 <input 
                   type="radio" 
                   name="category"
-                  checked={categoryFilter === cat.id}
+                  checked={categoryFilter === cat.slug}
                   onChange={() => {
-                    searchParams.set('category', cat.id);
+                    searchParams.set('category', cat.slug);
                     setSearchParams(searchParams);
                   }}
                   className="w-4 h-4 text-black border-gray-300 focus:ring-black cursor-pointer accent-black"
                 />
-                <span className={`text-sm ${categoryFilter === cat.id ? 'font-bold text-black' : 'text-gray-600 group-hover:text-black'}`}>
+                <span className={`text-sm ${categoryFilter === cat.slug ? 'font-bold text-black' : 'text-gray-600 group-hover:text-black'}`}>
                   {cat.name}
                 </span>
               </label>
@@ -227,12 +226,12 @@ export const Shop = () => {
           <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
             <Link to="/" className="hover:text-black transition-colors">Home</Link>
             <span className="text-gray-300">&gt;</span>
-            <span className="text-black font-medium">{categoryFilter ? categories.find(c => c.id === categoryFilter)?.name : 'Nos thés bio'}</span>
+            <span className="text-black font-medium">{categoryFilter ? categories.find(c => c.slug === categoryFilter)?.name : 'Nos thés bio'}</span>
           </div>
 
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <h1 className="font-['Mulish',sans-serif] text-3xl md:text-4xl font-bold text-[#1a1a1a]">
-              {categoryFilter ? categories.find(c => c.id === categoryFilter)?.name : 'Nos thés bio'}
+              {categoryFilter ? categories.find(c => c.slug === categoryFilter)?.name : 'Nos thés bio'}
             </h1>
             
             <div className="flex items-center gap-2">
@@ -251,13 +250,17 @@ export const Shop = () => {
           </div>
         </div>
 
-        {filteredProducts.length > 0 ? (
+        {loading ? (
+          <div className="py-20 text-center text-gray-500">Chargement des produits...</div>
+        ) : error ? (
+          <div className="py-20 text-center text-red-600">{error}</div>
+        ) : filteredProducts.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredProducts.map((product) => (
               <div key={product.id} className="group flex flex-col gap-4">
                 <div className={`relative ${product.bgClass} aspect-[4/5] overflow-hidden rounded-[10px] transition-transform group-hover:scale-[1.02]`}>
                   <Link
-                    to={`/product/${product.id}`}
+                    to={`/product/${product.slug}`}
                     className="absolute inset-0 flex items-center justify-center p-4"
                   >
                     <div className="absolute left-4 top-4 z-[1] flex items-center gap-1 rounded-[4px] bg-white/80 px-2 py-1 backdrop-blur-sm">
@@ -286,7 +289,7 @@ export const Shop = () => {
                 </div>
                 
                 <div className="flex flex-col gap-1">
-                  <Link to={`/product/${product.id}`}>
+                  <Link to={`/product/${product.slug}`}>
                     <h3 className="font-medium text-[#1a1a1a] group-hover:text-[#a4a374] transition-colors">{product.name}</h3>
                     <p className="text-xs text-gray-500 truncate">{product.ingredients}</p>
                   </Link>

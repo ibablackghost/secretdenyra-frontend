@@ -1,26 +1,48 @@
 import { useParams, Link } from 'react-router';
-import { products, formatPrice } from '../data';
 import { useCartStore } from '../store/cartStore';
 import { useWishlistStore } from '../store/wishlistStore';
 import { Star, Check, Truck, ShieldCheck, ArrowLeft, Plus, Minus, Heart } from 'lucide-react';
 import { useState } from 'react';
+import { useCatalog } from '../lib/useCatalog';
+import { formatPrice } from '../lib/price';
 
 export const Product = () => {
-  const { id } = useParams();
-  const product = products.find(p => p.id === id) || products[0]; // fallback to first
+  const { slug } = useParams();
+  const { products, loading, error } = useCatalog();
+  const product = products.find((p) => p.slug === slug);
   const { addItem } = useCartStore();
   const toggleWishlist = useWishlistStore((s) => s.toggle);
-  const inWishlist = useWishlistStore((s) => s.ids.includes(product.id));
+  const inWishlist = useWishlistStore((s) => (product ? s.ids.includes(product.id) : false));
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
 
   const handleAdd = () => {
+    if (!product) return;
     for (let i = 0; i < quantity; i++) {
       addItem(product.id);
     }
     setAdded(true);
     setTimeout(() => setAdded(false), 2000);
   };
+
+  if (loading) {
+    return <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-16 text-gray-500">Chargement du produit...</div>;
+  }
+
+  if (error) {
+    return <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-16 text-red-600">{error}</div>;
+  }
+
+  if (!product) {
+    return (
+      <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-16">
+        <p className="text-gray-700">Produit introuvable.</p>
+        <Link to="/shop" className="mt-4 inline-flex text-[#a4a374] hover:underline">
+          <ArrowLeft className="mr-2 h-4 w-4" /> Retour a la boutique
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-8 md:py-16">
@@ -59,7 +81,7 @@ export const Product = () => {
         {/* Détails Produit */}
         <div className="w-full md:w-1/2 flex flex-col pt-2 md:pt-6">
           <div className="flex flex-col gap-3 mb-6">
-            <span className="text-xs font-bold tracking-widest text-[#a4a374] uppercase font-['Mulish',sans-serif]">{product.category}</span>
+            <span className="text-xs font-bold tracking-widest text-[#a4a374] uppercase font-['Mulish',sans-serif]">{product.category.name}</span>
             <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-[#1a1a1a] font-['Mulish',sans-serif] leading-tight">{product.name}</h1>
             
             <div className="flex items-center gap-4 mt-2">
