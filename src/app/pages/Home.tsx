@@ -23,7 +23,10 @@ const ProductGrid = ({ title, products }: { title: string; products: UIProduct[]
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
         {products.map((product) => (
-          <div key={product.id} className="group flex flex-col gap-4">
+          <div
+            key={product.id}
+            className="group flex flex-col gap-4"
+          >
             <div className={`relative ${product.bgClass} aspect-[4/5] overflow-hidden rounded-[10px] transition-transform group-hover:scale-[1.02]`}>
               <Link to={`/product/${product.slug}`} className="absolute inset-0 flex items-center justify-center p-4">
                 <div className="absolute left-4 top-4 z-[1] flex items-center gap-1 rounded-[4px] bg-white/80 px-2 py-1 backdrop-blur-sm">
@@ -79,7 +82,7 @@ export const Home = () => {
       {/* Hero Section */}
       <section className="relative bg-[#edede3] w-full overflow-hidden">
         <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-16 md:py-24 lg:py-32 flex flex-col md:flex-row items-center">
-          <div className="w-full md:w-1/2 z-10 flex flex-col items-start gap-8">
+          <div className="w-full md:w-1/2 z-10 flex flex-col items-start gap-8 nyra-reveal">
             <h1 className="font-['Flamenco',sans-serif] text-5xl md:text-6xl lg:text-[61px] leading-[1.1] text-[#131313] tracking-[-0.4px]">
               La nature dans sa <span className="text-[#8d8c5d]">forme la plus pure</span>, <span className="text-[#8d8c5d]">infusée</span> pour votre équilibre.
             </h1>
@@ -91,7 +94,7 @@ export const Home = () => {
               <ArrowRight className="w-5 h-5" />
             </Link>
           </div>
-          <div className="w-full md:w-1/2 relative mt-12 md:mt-0">
+          <div className="w-full md:w-1/2 relative mt-12 md:mt-0 nyra-reveal" style={{ animationDelay: '180ms' }}>
             <img 
               src={image_Gemini_Generated_Image_4hyvy04hyvy04hyv_1} 
               alt="Tea preparation" 
@@ -126,8 +129,13 @@ export const Home = () => {
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
-          {categories.map((cat) => (
-            <Link to={`/shop?category=${cat.slug}`} key={cat.slug} className="flex flex-col items-center gap-4 group">
+          {categories.map((cat, index) => (
+            <Link
+              to={`/shop?category=${cat.slug}`}
+              key={cat.slug}
+              className="flex flex-col items-center gap-4 group nyra-reveal"
+              style={{ animationDelay: `${index * 60}ms` }}
+            >
               <div className="w-full aspect-square rounded-full bg-white shadow-sm overflow-hidden flex items-center justify-center p-4 border border-gray-100 group-hover:border-[#a4a374] transition-colors">
                 <img src={cat.image} alt={cat.name} className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-300" />
               </div>

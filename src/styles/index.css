@@ -1,3 +1,59 @@
 @import './fonts.css';
 @import './tailwind.css';
 @import './theme.css';
+
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes nyra-fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(18px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes nyra-soft-float {
+    0%, 100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-8px);
+    }
+  }
+
+  @keyframes nyra-menu-drop {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .nyra-reveal {
+    animation: nyra-fade-up 0.65s ease-out both;
+  }
+
+  .nyra-card {
+    transition: transform 280ms ease, box-shadow 280ms ease, filter 280ms ease;
+    will-change: transform;
+  }
+
+  .nyra-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 18px 35px -24px rgba(0, 0, 0, 0.45);
+    filter: saturate(1.05);
+  }
+
+  .nyra-float {
+    animation: nyra-soft-float 5s ease-in-out infinite;
+  }
+
+  .nyra-menu-enter {
+    animation: nyra-menu-drop 220ms ease-out both;
+  }
+}
