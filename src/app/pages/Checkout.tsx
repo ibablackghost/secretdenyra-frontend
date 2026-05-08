@@ -10,6 +10,8 @@ import { formatPrice } from '../lib/price';
 import { ErrorState, LoadingState } from '../components/ui/AsyncState';
 import { useOrderStore } from '../store/orderStore';
 import { usePurchasedProductsStore } from '../store/purchasedProductsStore';
+import { useAuthStore } from '../store/authStore';
+import { confirmCheckout, initCheckout } from '../services/api/commerceApi';
 import {
   trackCheckoutPaymentFailed,
   trackCheckoutStepComplete,
@@ -41,7 +43,9 @@ export const Checkout = () => {
   const cartItems = useCartStore((s) => s.items);
   const clearCart = useCartStore((s) => s.clearCart);
   const addOrder = useOrderStore((s) => s.addOrder);
+  const hydrateOrders = useOrderStore((s) => s.hydrateFromServer);
   const hydratePurchasedProducts = usePurchasedProductsStore((s) => s.hydrateFromServer);
+  const token = useAuthStore((s) => s.token);
   const { products, loading, error } = useCatalog();
 
   const {
@@ -173,27 +177,58 @@ export const Checkout = () => {
       return;
     }
 
-    const orderId = addOrder({
-      status: 'paid',
-      paymentMethod,
-      customer,
-      shippingAddress: shipping,
-      billingAddress: billingSameAsShipping ? shipping : billing,
-      subtotal,
-      shippingFee,
-      total,
-      items: cartProducts.map((item) => ({
-        productId: item.id,
-        name: item.name,
-        unitPrice: item.price,
-        quantity: item.quantity,
-      })),
-    });
-    await clearCart();
-    await hydratePurchasedProducts();
-    trackCheckoutStepComplete(3, STEP_LABELS[3]);
-    success(`Paiement validé. Commande ${orderId} créée.`);
-    navigate('/');
+    try {
+      if (token) {
+        const init = await initCheckout(token, {
+          customer,
+          shippingAddress: shipping,
+          billingAddress: billingSameAsShipping ? shipping : billing,
+          billingSameAsShipping,
+          items: cartProducts.map((item) => ({
+            productId: item.id,
+            quantity: item.quantity,
+          })),
+        });
+        const checkoutId = init.checkoutId ?? init.checkout_session_id;
+        if (!checkoutId) {
+          throw new Error('Checkout backend introuvable après initialisation.');
+        }
+        const confirm = await confirmCheckout(token, checkoutId, { paymentMethod });
+        await clearCart();
+        await Promise.all([hydrateOrders(), hydratePurchasedProducts()]);
+        trackCheckoutStepComplete(3, STEP_LABELS[3]);
+        success(`Paiement validé. Commande ${confirm.order?.id ?? confirm.orderId ?? checkoutId} créée.`);
+        navigate('/');
+        return;
+      }
+
+      // Fallback hors session connectée.
+      const orderId = addOrder({
+        status: 'paid',
+        paymentMethod,
+        customer,
+        shippingAddress: shipping,
+        billingAddress: billingSameAsShipping ? shipping : billing,
+        subtotal,
+        shippingFee,
+        total,
+        items: cartProducts.map((item) => ({
+          productId: item.id,
+          name: item.name,
+          unitPrice: item.price,
+          quantity: item.quantity,
+        })),
+      });
+      await clearCart();
+      await hydratePurchasedProducts();
+      trackCheckoutStepComplete(3, STEP_LABELS[3]);
+      success(`Paiement validé. Commande ${orderId} créée.`);
+      navigate('/');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Impossible de finaliser la commande.';
+      setFormError(msg);
+      toastError(msg);
+    }
   };
 
   return (

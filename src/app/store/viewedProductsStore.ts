@@ -19,7 +19,7 @@ export const useViewedProductsStore = create<ViewedProductsStore>()(
         if (!token) return;
         try {
           const data = await getViewedProducts(token);
-          set({ ids: data.items.map((item) => item.productId).slice(0, 24) });
+          set({ ids: data.productIds.slice(0, 24) });
         } catch {}
       },
       push: async (productId) => {

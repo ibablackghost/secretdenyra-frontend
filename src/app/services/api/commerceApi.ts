@@ -83,6 +83,28 @@ export type RemotePurchasedProductItem = {
   orderCount?: number;
 };
 
+export type CheckoutInitInput = {
+  customer: { firstName: string; lastName: string; email: string; phone: string };
+  shippingAddress: {
+    line1: string;
+    line2: string;
+    city: string;
+    region: string;
+    postalCode: string;
+    country: string;
+  };
+  billingAddress: {
+    line1: string;
+    line2: string;
+    city: string;
+    region: string;
+    postalCode: string;
+    country: string;
+  };
+  billingSameAsShipping: boolean;
+  items: Array<{ productId: string; quantity: number }>;
+};
+
 export async function getCart(token: string) {
   const response = await requestJson<{
     items?: Array<{ id?: string; itemId?: string; productId?: string; quantity?: number; product?: { id?: string; slug?: string } }>;
@@ -229,19 +251,30 @@ export async function getOrders(token: string) {
 }
 
 export async function getViewedProducts(token: string) {
-  const response = await requestJson<{ items?: Array<{ productId: string }>; products?: Array<{ productId: string }> }>(
+  const response = await requestJson<{
+    items?: Array<{ productId?: string; product?: { id?: string; slug?: string } }>;
+    products?: Array<{ productId?: string; id?: string; slug?: string }>;
+    productIds?: string[];
+  }>(
     url('/api/me/viewed-products'),
     {
       method: 'GET',
       headers: authHeaders(token),
     }
   );
+  const idsFromItems = Array.isArray(response.items)
+    ? response.items
+        .flatMap((item) => [item.productId, item.product?.id, item.product?.slug])
+        .filter((value): value is string => Boolean(value))
+    : [];
+  const idsFromProducts = Array.isArray(response.products)
+    ? response.products
+        .flatMap((product) => [product.productId, product.id, product.slug])
+        .filter((value): value is string => Boolean(value))
+    : [];
+  const explicitIds = Array.isArray(response.productIds) ? response.productIds.filter(Boolean) : [];
   return {
-    items: Array.isArray(response.items)
-      ? response.items
-      : Array.isArray(response.products)
-        ? response.products
-        : [],
+    productIds: Array.from(new Set([...explicitIds, ...idsFromItems, ...idsFromProducts])),
   };
 }
 
@@ -250,6 +283,26 @@ export async function pushViewedProduct(token: string, productId: string) {
     method: 'POST',
     headers: authHeaders(token),
     body: { productId },
+  });
+}
+
+export async function initCheckout(token: string, input: CheckoutInitInput) {
+  return requestJson<{ checkoutId?: string; checkout_session_id?: string }>(url('/api/checkout/init'), {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: input,
+  });
+}
+
+export async function confirmCheckout(
+  token: string,
+  checkoutId: string,
+  input: { paymentMethod: string; paymentIntentId?: string }
+) {
+  return requestJson<{ order?: { id?: string }; orderId?: string }>(url(`/api/checkout/${checkoutId}/confirm`), {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: input,
   });
 }
 
