@@ -9,6 +9,8 @@ import { useViewedProductsStore } from '../store/viewedProductsStore';
 import { useCatalog } from '../lib/useCatalog';
 import { formatPrice } from '../lib/price';
 import { useToast } from '../hooks/useToast';
+import { MediaImage } from '../components/ui/MediaImage';
+import { usePurchasedProductsStore } from '../store/purchasedProductsStore';
 
 export const Account = () => {
   const user = useAuthStore((s) => s.user);
@@ -42,7 +44,9 @@ export const Account = () => {
   const removeAddress = useAddressStore((s) => s.removeAddress);
   const setDefaultAddress = useAddressStore((s) => s.setDefaultAddress);
   const wishlistIds = useWishlistStore((s) => s.ids);
+  const wishlistCount = useWishlistStore((s) => s.count);
   const viewedIds = useViewedProductsStore((s) => s.ids);
+  const purchasedItems = usePurchasedProductsStore((s) => s.items);
   const { products } = useCatalog();
 
   useEffect(() => {
@@ -64,6 +68,11 @@ export const Account = () => {
     () => orders.reduce((acc, order) => acc + (Number(order?.total) || 0), 0),
     [orders]
   );
+
+  const getProductImage = (productId: string) => {
+    const found = products.find((product) => product.id === productId || product.slug === productId);
+    return found?.image ?? '';
+  };
 
   const validateAddressForm = () => {
     if (!addressForm.label.trim()) return 'Le libellé de l’adresse est obligatoire.';
@@ -154,7 +163,7 @@ export const Account = () => {
             </div>
             <div className="rounded-[12px] border border-gray-100 p-4">
               <p className="text-xs text-gray-500">Wishlist</p>
-              <p className="mt-1 text-xl font-bold">{wishlistIds.length}</p>
+              <p className="mt-1 text-xl font-bold">{wishlistCount}</p>
             </div>
             <div className="rounded-[12px] border border-gray-100 p-4">
               <p className="text-xs text-gray-500">Total dépensé</p>
@@ -238,8 +247,16 @@ export const Account = () => {
                         <p className="mb-2 text-xs text-gray-500">Détail</p>
                         <div className="space-y-2">
                           {(Array.isArray(order.items) ? order.items : []).map((item) => (
-                            <div key={`${order.id}-${item.productId}`} className="flex items-center justify-between">
-                              <span>{item.name} x{item.quantity}</span>
+                            <div key={`${order.id}-${item.productId}`} className="flex items-center justify-between gap-3">
+                              <div className="flex min-w-0 items-center gap-3">
+                                <MediaImage
+                                  src={getProductImage(item.productId)}
+                                  alt={item.name}
+                                  className="h-12 w-12 rounded-[10px] object-cover"
+                                  fallbackClassName="h-12 w-12"
+                                />
+                                <span className="line-clamp-1">{item.name} x{item.quantity}</span>
+                              </div>
                               <span>{formatPrice(item.unitPrice * item.quantity)}</span>
                             </div>
                           ))}
@@ -331,7 +348,13 @@ export const Account = () => {
               <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 {viewedProducts.map((product) => (
                   <Link key={product.id} to={`/product/${product.slug}`} className="rounded-[12px] border border-gray-100 p-3 hover:bg-gray-50">
-                    <p className="line-clamp-1 text-sm font-semibold">{product.name}</p>
+                    <MediaImage
+                      src={product.image}
+                      alt={product.name}
+                      className="h-28 w-full rounded-[10px] object-cover"
+                      fallbackClassName="h-28 w-full"
+                    />
+                    <p className="mt-2 line-clamp-1 text-sm font-semibold">{product.name}</p>
                     <p className="mt-1 text-xs text-gray-500">{formatPrice(product.price)}</p>
                   </Link>
                 ))}
@@ -347,10 +370,54 @@ export const Account = () => {
               <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 {wishlistProducts.map((product) => (
                   <Link key={product.id} to={`/product/${product.slug}`} className="rounded-[12px] border border-gray-100 p-3 hover:bg-gray-50">
-                    <p className="line-clamp-1 text-sm font-semibold">{product.name}</p>
+                    <MediaImage
+                      src={product.image}
+                      alt={product.name}
+                      className="h-28 w-full rounded-[10px] object-cover"
+                      fallbackClassName="h-28 w-full"
+                    />
+                    <p className="mt-2 line-clamp-1 text-sm font-semibold">{product.name}</p>
                     <p className="mt-1 text-xs text-gray-500">{formatPrice(product.price)}</p>
                   </Link>
                 ))}
+              </div>
+            )}
+          </section>
+
+          <section className="mt-10 border-t border-gray-100 pt-8">
+            <h2 className="text-lg font-semibold">Produits achetés</h2>
+            {purchasedItems.length === 0 ? (
+              <p className="mt-2 text-sm text-gray-500">Aucun produit acheté pour le moment.</p>
+            ) : (
+              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {purchasedItems.slice(0, 6).map((item) => {
+                  const productId = item.productId ?? item.product?.id ?? item.productSlug ?? item.product?.slug ?? '';
+                  const productName = item.productName ?? item.product?.name ?? 'Produit';
+                  const totalQuantity = Number(item.totalQuantity ?? 0) || 0;
+                  const totalSpentValue = Number(item.totalSpent ?? 0) || 0;
+                  const currency = item.currency ?? item.product?.currency ?? 'XOF';
+                  return (
+                  <div key={`bought-${productId}-${productName}`} className="rounded-[12px] border border-gray-100 p-3">
+                    <div className="flex items-center gap-3">
+                      <MediaImage
+                        src={item.product?.image ?? getProductImage(productId)}
+                        alt={productName}
+                        className="h-16 w-16 rounded-[10px] object-cover"
+                        fallbackClassName="h-16 w-16"
+                      />
+                      <div>
+                        <p className="line-clamp-1 text-sm font-semibold">{productName}</p>
+                        <p className="mt-1 text-xs text-gray-500">Quantité achetée: {totalQuantity}</p>
+                        {totalSpentValue > 0 ? (
+                          <p className="mt-1 text-xs text-gray-500">
+                            Montant: {currency === 'XOF' ? formatPrice(totalSpentValue) : `${totalSpentValue} ${currency}`}
+                          </p>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                );
+                })}
               </div>
             )}
           </section>

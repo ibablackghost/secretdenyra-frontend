@@ -21,8 +21,10 @@ export const Product = () => {
   const product = products.find((p) => p.slug === slug);
   const { addItem } = useCartStore();
   const toggleWishlist = useWishlistStore((s) => s.toggle);
-  const wishIds = useWishlistStore((s) => s.ids);
-  const inWishlist = useWishlistStore((s) => (product ? s.ids.includes(product.id) : false));
+  const isWishlisted = useWishlistStore((s) => s.isWishlisted);
+  const inWishlist = useWishlistStore((s) =>
+    product ? s.isWishlisted({ id: product.id, slug: product.slug }) : false
+  );
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
@@ -341,7 +343,7 @@ export const Product = () => {
               <ProductCard
                 key={item.id}
                 product={item}
-                wished={wishIds.includes(item.id)}
+                wished={isWishlisted({ id: item.id, slug: item.slug })}
                 onToggleWishlist={handleToggleWishlist}
                 onAddToCart={handleAddToCart}
               />

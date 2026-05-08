@@ -5,10 +5,13 @@ import { getStoredAuthToken } from '../services/api/session';
 
 interface WishlistStore {
   ids: string[];
+  count: number;
   hydrateFromServer: () => Promise<void>;
+  loadWishlist: () => Promise<void>;
   toggle: (productId: string) => Promise<void>;
   remove: (productId: string) => Promise<void>;
   has: (productId: string) => boolean;
+  isWishlisted: (product: { id?: string; slug?: string }) => boolean;
   clear: () => Promise<void>;
 }
 
@@ -16,13 +19,20 @@ export const useWishlistStore = create<WishlistStore>()(
   persist(
     (set, get) => ({
       ids: [],
+      count: 0,
       hydrateFromServer: async () => {
         const token = getStoredAuthToken();
-        if (!token) return;
+        if (!token) {
+          set({ ids: [], count: 0 });
+          return;
+        }
         try {
           const data = await getWishlist(token);
-          set({ ids: data.items.map((item) => item.productId) });
+          set({ ids: data.productIds, count: data.count });
         } catch {}
+      },
+      loadWishlist: async () => {
+        await get().hydrateFromServer();
       },
       toggle: async (productId) => {
         const wasIn = get().ids.includes(productId);
@@ -40,7 +50,10 @@ export const useWishlistStore = create<WishlistStore>()(
         } catch {}
       },
       remove: async (productId) => {
-        set((s) => ({ ids: s.ids.filter((id) => id !== productId) }));
+        set((s) => ({
+          ids: s.ids.filter((id) => id !== productId),
+          count: Math.max(0, s.count - 1),
+        }));
         const token = getStoredAuthToken();
         if (!token) return;
         try {
@@ -49,7 +62,14 @@ export const useWishlistStore = create<WishlistStore>()(
         } catch {}
       },
       has: (productId) => get().ids.includes(productId),
-      clear: async () => set({ ids: [] }),
+      isWishlisted: (product) => {
+        const ids = get().ids;
+        return Boolean(
+          (product.id && ids.includes(product.id)) ||
+            (product.slug && ids.includes(product.slug))
+        );
+      },
+      clear: async () => set({ ids: [], count: 0 }),
     }),
     { name: 'nyra-wishlist' }
   )

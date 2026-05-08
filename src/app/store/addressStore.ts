@@ -28,6 +28,7 @@ type AddressStore = {
   updateAddress: (id: string, payload: Partial<UserAddress>) => Promise<void>;
   removeAddress: (id: string) => Promise<void>;
   setDefaultAddress: (id: string) => Promise<void>;
+  clear: () => Promise<void>;
 };
 
 export const useAddressStore = create<AddressStore>()(
@@ -97,6 +98,7 @@ export const useAddressStore = create<AddressStore>()(
           await get().hydrateFromServer();
         } catch {}
       },
+      clear: async () => set({ addresses: [] }),
     }),
     { name: 'nyra-addresses' }
   )

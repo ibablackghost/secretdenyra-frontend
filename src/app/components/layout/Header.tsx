@@ -12,7 +12,7 @@ export const Header = () => {
   const cartItems = useCartStore((state) => state.items);
   const cartCount = cartItems.reduce((acc, item) => acc + item.quantity, 0);
   const user = useAuthStore((s) => s.user);
-  const wishCount = useWishlistStore((s) => s.ids.length);
+  const wishCount = useWishlistStore((s) => s.count);
 
   const [headerQ, setHeaderQ] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);

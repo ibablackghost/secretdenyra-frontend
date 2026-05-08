@@ -27,7 +27,7 @@ export const Shop = () => {
 
   const { addItem } = useCartStore();
   const toggleWishlist = useWishlistStore((s) => s.toggle);
-  const wishIds = useWishlistStore((s) => s.ids);
+  const isWishlisted = useWishlistStore((s) => s.isWishlisted);
   const { products, categories, tags, loading, error } = useCatalog();
   const { success, info } = useToast();
 
@@ -353,7 +353,7 @@ export const Shop = () => {
               <ProductCard
                 key={product.id}
                 product={product}
-                wished={wishIds.includes(product.id)}
+                wished={isWishlisted({ id: product.id, slug: product.slug })}
                 onToggleWishlist={handleToggleWishlist}
                 onAddToCart={handleAddToCart}
               />

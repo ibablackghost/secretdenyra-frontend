@@ -2,6 +2,7 @@ import { lazy, Suspense, type ComponentType } from 'react';
 import { createBrowserRouter } from 'react-router';
 import { Layout } from './components/layout/Layout';
 import { RequireAuth } from './components/auth/RequireAuth';
+import { RouteErrorBoundary } from './components/ui/RouteErrorBoundary';
 const Home = lazy(() => import('./pages/Home').then((m) => ({ default: m.Home })));
 const Shop = lazy(() => import('./pages/Shop').then((m) => ({ default: m.Shop })));
 const Product = lazy(() => import('./pages/Product').then((m) => ({ default: m.Product })));
@@ -44,6 +45,7 @@ export const router = createBrowserRouter([
   {
     path: '/',
     Component: Layout,
+    errorElement: <RouteErrorBoundary />,
     children: [
       { index: true, Component: HomeRoute },
       { path: 'shop', Component: ShopRoute },

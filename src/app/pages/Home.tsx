@@ -15,7 +15,7 @@ import { trackAddToCart } from '../services/analytics/tracking';
 const ProductGrid = ({ title, products }: { title: string; products: UIProduct[] }) => {
   const { addItem } = useCartStore();
   const toggleWishlist = useWishlistStore((s) => s.toggle);
-  const wishIds = useWishlistStore((s) => s.ids);
+  const isWishlisted = useWishlistStore((s) => s.isWishlisted);
   const { success, info } = useToast();
 
   const handleAddToCart = (product: UIProduct) => {
@@ -43,7 +43,7 @@ const ProductGrid = ({ title, products }: { title: string; products: UIProduct[]
           <ProductCard
             key={product.id}
             product={product}
-            wished={wishIds.includes(product.id)}
+            wished={isWishlisted({ id: product.id, slug: product.slug })}
             onToggleWishlist={handleToggleWishlist}
             onAddToCart={handleAddToCart}
           />

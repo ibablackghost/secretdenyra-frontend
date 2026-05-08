@@ -9,6 +9,7 @@ import { useCatalog } from '../lib/useCatalog';
 import { formatPrice } from '../lib/price';
 import { ErrorState, LoadingState } from '../components/ui/AsyncState';
 import { useOrderStore } from '../store/orderStore';
+import { usePurchasedProductsStore } from '../store/purchasedProductsStore';
 import {
   trackCheckoutPaymentFailed,
   trackCheckoutStepComplete,
@@ -40,6 +41,7 @@ export const Checkout = () => {
   const cartItems = useCartStore((s) => s.items);
   const clearCart = useCartStore((s) => s.clearCart);
   const addOrder = useOrderStore((s) => s.addOrder);
+  const hydratePurchasedProducts = usePurchasedProductsStore((s) => s.hydrateFromServer);
   const { products, loading, error } = useCatalog();
 
   const {
@@ -188,6 +190,7 @@ export const Checkout = () => {
       })),
     });
     await clearCart();
+    await hydratePurchasedProducts();
     trackCheckoutStepComplete(3, STEP_LABELS[3]);
     success(`Paiement validé. Commande ${orderId} créée.`);
     navigate('/');

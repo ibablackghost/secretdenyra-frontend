@@ -17,7 +17,12 @@ function authHeaders(token: string) {
   return { Authorization: `Bearer ${token}` };
 }
 
-export type RemoteCartItem = { productId: string; quantity: number; itemId?: string };
+export type RemoteCartItem = { productId: string; quantity: number; id?: string; itemId?: string };
+export type RemoteWishlistItem = {
+  id?: string;
+  productId?: string;
+  product?: { id?: string; slug?: string };
+};
 export type RemoteAddress = {
   id: string;
   label: string;
@@ -58,11 +63,44 @@ export type RemoteOrder = {
   items: Array<{ productId: string; name: string; unitPrice: number; quantity: number }>;
 };
 
+export type RemotePurchasedProductItem = {
+  product?: {
+    id?: string;
+    slug?: string;
+    name?: string;
+    price?: number;
+    image?: string;
+    currency?: string;
+  };
+  productId?: string;
+  productSlug?: string;
+  productName?: string;
+  totalQuantity?: number;
+  totalSpent?: number;
+  currency?: string;
+  lastPurchasedAt?: string;
+  lastOrderId?: string;
+  orderCount?: number;
+};
+
 export async function getCart(token: string) {
-  return requestJson<{ items: RemoteCartItem[] }>(url('/api/cart'), {
+  const response = await requestJson<{
+    items?: Array<{ id?: string; itemId?: string; productId?: string; quantity?: number; product?: { id?: string; slug?: string } }>;
+  }>(url('/api/cart'), {
     method: 'GET',
     headers: authHeaders(token),
   });
+  const items = Array.isArray(response.items)
+    ? response.items
+        .map((item) => ({
+          id: item.id ?? item.itemId,
+          itemId: item.itemId ?? item.id,
+          productId: item.productId ?? item.product?.id ?? item.product?.slug ?? '',
+          quantity: Number(item.quantity ?? 0) || 0,
+        }))
+        .filter((item) => Boolean(item.productId) && item.quantity > 0)
+    : [];
+  return { items };
 }
 
 export async function addCartItem(token: string, input: { productId: string; quantity: number }) {
@@ -89,14 +127,36 @@ export async function removeCartItem(token: string, itemId: string) {
 }
 
 export async function getWishlist(token: string) {
-  return requestJson<{ items: Array<{ productId: string }> }>(url('/api/me/wishlist'), {
+  const response = await requestJson<{
+    items?: RemoteWishlistItem[];
+    products?: Array<{ id?: string; slug?: string }>;
+    productIds?: string[];
+    count?: number;
+  }>(url('/api/me/wishlist'), {
     method: 'GET',
     headers: authHeaders(token),
   });
+  const itemIdsFromItems = Array.isArray(response.items)
+    ? response.items
+        .flatMap((item) => [item.productId, item.product?.id, item.product?.slug])
+        .filter((value): value is string => Boolean(value))
+    : [];
+  const itemIdsFromProducts = Array.isArray(response.products)
+    ? response.products
+        .flatMap((product) => [product.id, product.slug])
+        .filter((value): value is string => Boolean(value))
+    : [];
+  const explicitIds = Array.isArray(response.productIds) ? response.productIds.filter(Boolean) : [];
+  const productIds = Array.from(new Set([...explicitIds, ...itemIdsFromItems, ...itemIdsFromProducts]));
+  return {
+    items: Array.isArray(response.items) ? response.items : [],
+    productIds,
+    count: Number(response.count ?? productIds.length) || 0,
+  };
 }
 
 export async function addWishlistItem(token: string, productId: string) {
-  return requestJson<{ items: Array<{ productId: string }> }>(url('/api/me/wishlist/items'), {
+  return requestJson<{ added?: boolean }>(url('/api/me/wishlist/items'), {
     method: 'POST',
     headers: authHeaders(token),
     body: { productId },
@@ -104,17 +164,24 @@ export async function addWishlistItem(token: string, productId: string) {
 }
 
 export async function removeWishlistItem(token: string, productId: string) {
-  return requestJson<{ items: Array<{ productId: string }> }>(url(`/api/me/wishlist/items/${productId}`), {
+  return requestJson<{ removed?: boolean }>(url(`/api/me/wishlist/items/${productId}`), {
     method: 'DELETE',
     headers: authHeaders(token),
   });
 }
 
 export async function getAddresses(token: string) {
-  return requestJson<{ items: RemoteAddress[] }>(url('/api/me/addresses'), {
+  const response = await requestJson<{ items?: RemoteAddress[]; addresses?: RemoteAddress[] }>(url('/api/me/addresses'), {
     method: 'GET',
     headers: authHeaders(token),
   });
+  return {
+    items: Array.isArray(response.items)
+      ? response.items
+      : Array.isArray(response.addresses)
+        ? response.addresses
+        : [],
+  };
 }
 
 export async function createAddress(token: string, input: Omit<RemoteAddress, 'id'>) {
@@ -148,17 +215,34 @@ export async function setDefaultAddressRemote(token: string, id: string) {
 }
 
 export async function getOrders(token: string) {
-  return requestJson<{ items: RemoteOrder[] }>(url('/api/me/orders?page=1&pageSize=20'), {
+  const response = await requestJson<{ items?: RemoteOrder[]; orders?: RemoteOrder[] }>(url('/api/me/orders?page=1&pageSize=20'), {
     method: 'GET',
     headers: authHeaders(token),
   });
+  return {
+    items: Array.isArray(response.items)
+      ? response.items
+      : Array.isArray(response.orders)
+        ? response.orders
+        : [],
+  };
 }
 
 export async function getViewedProducts(token: string) {
-  return requestJson<{ items: Array<{ productId: string }> }>(url('/api/me/viewed-products'), {
-    method: 'GET',
-    headers: authHeaders(token),
-  });
+  const response = await requestJson<{ items?: Array<{ productId: string }>; products?: Array<{ productId: string }> }>(
+    url('/api/me/viewed-products'),
+    {
+      method: 'GET',
+      headers: authHeaders(token),
+    }
+  );
+  return {
+    items: Array.isArray(response.items)
+      ? response.items
+      : Array.isArray(response.products)
+        ? response.products
+        : [],
+  };
 }
 
 export async function pushViewedProduct(token: string, productId: string) {
@@ -167,4 +251,38 @@ export async function pushViewedProduct(token: string, productId: string) {
     headers: authHeaders(token),
     body: { productId },
   });
+}
+
+export async function getPurchasedProducts(token: string) {
+  const response = await requestJson<{
+    items?: RemotePurchasedProductItem[];
+    products?: Array<{ id?: string; slug?: string; name?: string; price?: number; image?: string }>;
+    productIds?: string[];
+    count?: number;
+  }>(url('/api/me/purchased-products'), {
+    method: 'GET',
+    headers: authHeaders(token),
+  });
+
+  const items = Array.isArray(response.items) ? response.items : [];
+  const fallbackItemsFromProducts = Array.isArray(response.products)
+    ? response.products.map((product) => ({
+        product,
+        productId: product.id ?? product.slug ?? '',
+        productSlug: product.slug ?? '',
+        productName: product.name ?? '',
+        totalQuantity: 0,
+        totalSpent: 0,
+        currency: 'XOF',
+        orderCount: 0,
+      }))
+    : [];
+  const normalizedItems = (items.length ? items : fallbackItemsFromProducts).filter(
+    (item) => Boolean(item.productId || item.product?.id || item.productSlug || item.product?.slug)
+  );
+
+  return {
+    items: normalizedItems,
+    count: Number(response.count ?? normalizedItems.length) || 0,
+  };
 }

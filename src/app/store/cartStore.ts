@@ -6,6 +6,7 @@ import { getStoredAuthToken } from '../services/api/session';
 export interface CartItem {
   productId: string;
   quantity: number;
+  id?: string;
   itemId?: string;
 }
 
@@ -27,7 +28,14 @@ export const useCartStore = create<CartStore>()(
         if (!token) return;
         try {
           const data = await getCart(token);
-          set({ items: data.items.map((item) => ({ productId: item.productId, quantity: item.quantity, itemId: item.itemId })) });
+          set({
+            items: data.items.map((item) => ({
+              productId: item.productId,
+              quantity: item.quantity,
+              id: item.id ?? item.itemId,
+              itemId: item.itemId ?? item.id,
+            })),
+          });
         } catch {
           // Keep local fallback if backend unavailable.
         }
@@ -61,9 +69,10 @@ export const useCartStore = create<CartStore>()(
           items: state.items.filter((item) => item.productId !== productId),
         }));
         const token = getStoredAuthToken();
-        if (!token || !before?.itemId) return;
+        const lineId = before?.id ?? before?.itemId;
+        if (!token || !lineId) return;
         try {
-          await removeCartItem(token, before.itemId);
+          await removeCartItem(token, lineId);
           await get().hydrateFromServer();
         } catch {}
       },
@@ -75,9 +84,10 @@ export const useCartStore = create<CartStore>()(
         }));
         const token = getStoredAuthToken();
         const current = get().items.find((item) => item.productId === productId);
-        if (!token || !current?.itemId) return;
+        const lineId = current?.id ?? current?.itemId;
+        if (!token || !lineId) return;
         try {
-          await updateCartItem(token, current.itemId, { quantity });
+          await updateCartItem(token, lineId, { quantity });
           await get().hydrateFromServer();
         } catch {}
       },
@@ -89,8 +99,8 @@ export const useCartStore = create<CartStore>()(
         try {
           await Promise.all(
             snapshot
-              .filter((item) => Boolean(item.itemId))
-              .map((item) => removeCartItem(token, item.itemId!))
+              .filter((item) => Boolean(item.id ?? item.itemId))
+              .map((item) => removeCartItem(token, (item.id ?? item.itemId)!))
           );
           await get().hydrateFromServer();
         } catch {}

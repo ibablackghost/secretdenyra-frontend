@@ -29,6 +29,7 @@ type OrderStore = {
   orders: UserOrder[];
   hydrateFromServer: () => Promise<void>;
   addOrder: (order: Omit<UserOrder, 'id' | 'createdAt'>) => string;
+  clear: () => Promise<void>;
 };
 
 export const useOrderStore = create<OrderStore>()(
@@ -55,6 +56,7 @@ export const useOrderStore = create<OrderStore>()(
         set((state) => ({ orders: [{ ...order, id, createdAt }, ...state.orders] }));
         return id;
       },
+      clear: async () => set({ orders: [] }),
     }),
     { name: 'nyra-orders' }
   )
