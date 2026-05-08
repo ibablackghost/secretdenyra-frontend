@@ -35,8 +35,8 @@ export const Account = () => {
   const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
   const { success, error: toastError, info } = useToast();
 
-  const orders = useOrderStore((s) => s.orders);
-  const addresses = useAddressStore((s) => s.addresses);
+  const orders = useOrderStore((s) => (Array.isArray(s.orders) ? s.orders : []));
+  const addresses = useAddressStore((s) => (Array.isArray(s.addresses) ? s.addresses : []));
   const addAddress = useAddressStore((s) => s.addAddress);
   const updateAddress = useAddressStore((s) => s.updateAddress);
   const removeAddress = useAddressStore((s) => s.removeAddress);
@@ -60,7 +60,10 @@ export const Account = () => {
     .filter((item): item is NonNullable<typeof item> => Boolean(item))
     .slice(0, 4);
   const defaultAddress = addresses.find((a) => a.isDefault) ?? addresses[0];
-  const totalSpent = useMemo(() => orders.reduce((acc, order) => acc + order.total, 0), [orders]);
+  const totalSpent = useMemo(
+    () => orders.reduce((acc, order) => acc + (Number(order?.total) || 0), 0),
+    [orders]
+  );
 
   const validateAddressForm = () => {
     if (!addressForm.label.trim()) return 'Le libellé de l’adresse est obligatoire.';
@@ -234,7 +237,7 @@ export const Account = () => {
                       <div className="mt-3 border-t border-gray-100 pt-3 text-sm">
                         <p className="mb-2 text-xs text-gray-500">Détail</p>
                         <div className="space-y-2">
-                          {order.items.map((item) => (
+                          {(Array.isArray(order.items) ? order.items : []).map((item) => (
                             <div key={`${order.id}-${item.productId}`} className="flex items-center justify-between">
                               <span>{item.name} x{item.quantity}</span>
                               <span>{formatPrice(item.unitPrice * item.quantity)}</span>

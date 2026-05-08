@@ -40,7 +40,13 @@ export const useOrderStore = create<OrderStore>()(
         if (!token) return;
         try {
           const data = await getOrders(token);
-          set({ orders: data.items });
+          const maybeItems = (data as { items?: unknown })?.items;
+          const orders = Array.isArray(maybeItems)
+            ? (maybeItems as UserOrder[])
+            : Array.isArray(data)
+              ? (data as UserOrder[])
+              : [];
+          set({ orders });
         } catch {}
       },
       addOrder: (order) => {
