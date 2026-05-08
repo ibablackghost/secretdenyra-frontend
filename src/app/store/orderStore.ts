@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { CheckoutAddress, CheckoutCustomer } from './checkoutStore';
+import { getOrders } from '../services/api/commerceApi';
+import { getStoredAuthToken } from '../services/api/session';
 
 export type UserOrderItem = {
   productId: string;
@@ -25,6 +27,7 @@ export type UserOrder = {
 
 type OrderStore = {
   orders: UserOrder[];
+  hydrateFromServer: () => Promise<void>;
   addOrder: (order: Omit<UserOrder, 'id' | 'createdAt'>) => string;
 };
 
@@ -32,6 +35,14 @@ export const useOrderStore = create<OrderStore>()(
   persist(
     (set) => ({
       orders: [],
+      hydrateFromServer: async () => {
+        const token = getStoredAuthToken();
+        if (!token) return;
+        try {
+          const data = await getOrders(token);
+          set({ orders: data.items });
+        } catch {}
+      },
       addOrder: (order) => {
         const id = `ORD-${Date.now().toString().slice(-6)}`;
         const createdAt = new Date().toISOString();

@@ -1,5 +1,13 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import {
+  createAddress,
+  deleteAddress,
+  getAddresses,
+  patchAddress,
+  setDefaultAddressRemote,
+} from '../services/api/commerceApi';
+import { getStoredAuthToken } from '../services/api/session';
 
 export type UserAddress = {
   id: string;
@@ -15,17 +23,26 @@ export type UserAddress = {
 
 type AddressStore = {
   addresses: UserAddress[];
-  addAddress: (address: Omit<UserAddress, 'id'>) => void;
-  updateAddress: (id: string, payload: Partial<UserAddress>) => void;
-  removeAddress: (id: string) => void;
-  setDefaultAddress: (id: string) => void;
+  hydrateFromServer: () => Promise<void>;
+  addAddress: (address: Omit<UserAddress, 'id'>) => Promise<void>;
+  updateAddress: (id: string, payload: Partial<UserAddress>) => Promise<void>;
+  removeAddress: (id: string) => Promise<void>;
+  setDefaultAddress: (id: string) => Promise<void>;
 };
 
 export const useAddressStore = create<AddressStore>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       addresses: [],
-      addAddress: (address) =>
+      hydrateFromServer: async () => {
+        const token = getStoredAuthToken();
+        if (!token) return;
+        try {
+          const data = await getAddresses(token);
+          set({ addresses: data.items });
+        } catch {}
+      },
+      addAddress: async (address) => {
         set((state) => {
           const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
           const shouldBeDefault = state.addresses.length === 0 || Boolean(address.isDefault);
@@ -35,23 +52,51 @@ export const useAddressStore = create<AddressStore>()(
           return {
             addresses: [...next, { ...address, id, isDefault: shouldBeDefault }],
           };
-        }),
-      updateAddress: (id, payload) =>
+        });
+        const token = getStoredAuthToken();
+        if (!token) return;
+        try {
+          await createAddress(token, address);
+          await get().hydrateFromServer();
+        } catch {}
+      },
+      updateAddress: async (id, payload) => {
         set((state) => ({
           addresses: state.addresses.map((item) => (item.id === id ? { ...item, ...payload } : item)),
-        })),
-      removeAddress: (id) =>
+        }));
+        const token = getStoredAuthToken();
+        if (!token) return;
+        try {
+          await patchAddress(token, id, payload);
+          await get().hydrateFromServer();
+        } catch {}
+      },
+      removeAddress: async (id) => {
         set((state) => {
           const next = state.addresses.filter((item) => item.id !== id);
           if (!next.some((item) => item.isDefault) && next.length > 0) {
             next[0].isDefault = true;
           }
           return { addresses: next };
-        }),
-      setDefaultAddress: (id) =>
+        });
+        const token = getStoredAuthToken();
+        if (!token) return;
+        try {
+          await deleteAddress(token, id);
+          await get().hydrateFromServer();
+        } catch {}
+      },
+      setDefaultAddress: async (id) => {
         set((state) => ({
           addresses: state.addresses.map((item) => ({ ...item, isDefault: item.id === id })),
-        })),
+        }));
+        const token = getStoredAuthToken();
+        if (!token) return;
+        try {
+          await setDefaultAddressRemote(token, id);
+          await get().hydrateFromServer();
+        } catch {}
+      },
     }),
     { name: 'nyra-addresses' }
   )

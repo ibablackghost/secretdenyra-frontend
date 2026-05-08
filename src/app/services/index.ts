@@ -1,4 +1,7 @@
 export * from './api/catalogApi';
 export * from './api/httpClient';
 export * from './api/apiError';
+export * from './api/authApi';
+export * from './api/commerceApi';
+export * from './api/session';
 export * from './analytics/tracking';

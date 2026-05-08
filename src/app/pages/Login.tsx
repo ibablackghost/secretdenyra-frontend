@@ -5,35 +5,39 @@ import { NyraButton, NyraFormCard, NyraFormError, NyraInput, NyraLabel } from '.
 
 export const Login = () => {
   const login = useAuthStore((s) => s.login);
-  const sessionUser = useAuthStore((s) => s.user);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const navigate = useNavigate();
   const location = useLocation();
   const from = (location.state as { from?: string } | null)?.from ?? '/account';
 
   useEffect(() => {
-    if (sessionUser) navigate('/account', { replace: true });
-  }, [sessionUser, navigate]);
+    if (isAuthenticated) navigate('/account', { replace: true });
+  }, [isAuthenticated, navigate]);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    const res = login(email, password);
-    if (!res.ok) {
-      setError(res.message);
-      return;
+    setIsSubmitting(true);
+    try {
+      await login(email, password);
+      navigate(from, { replace: true });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Email ou mot de passe incorrect.');
+    } finally {
+      setIsSubmitting(false);
     }
-    navigate(from, { replace: true });
   };
 
   return (
     <div className="mx-auto max-w-[1400px] px-4 py-16 md:py-24">
       <NyraFormCard
         title="Connexion"
-        subtitle="Accédez à votre compte Secret de Nyra. Les données sont stockées localement (démo) jusqu’à branchement Strapi."
+        subtitle="Accédez à votre compte Secret de Nyra."
       >
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
@@ -61,8 +65,8 @@ export const Login = () => {
             />
           </div>
           <NyraFormError message={error} />
-          <NyraButton type="submit" className="w-full">
-            Se connecter
+          <NyraButton type="submit" className="w-full" disabled={isSubmitting}>
+            {isSubmitting ? 'Connexion...' : 'Se connecter'}
           </NyraButton>
         </form>
         <p className="mt-6 text-center text-sm text-gray-600 font-['Mulish',sans-serif]">

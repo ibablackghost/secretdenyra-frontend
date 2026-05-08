@@ -1,24 +1,38 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { addCartItem, getCart, removeCartItem, updateCartItem } from '../services/api/commerceApi';
+import { getStoredAuthToken } from '../services/api/session';
 
-interface CartItem {
+export interface CartItem {
   productId: string;
   quantity: number;
+  itemId?: string;
 }
 
 interface CartStore {
   items: CartItem[];
-  addItem: (productId: string) => void;
-  removeItem: (productId: string) => void;
-  updateQuantity: (productId: string, quantity: number) => void;
-  clearCart: () => void;
+  hydrateFromServer: () => Promise<void>;
+  addItem: (productId: string) => Promise<void>;
+  removeItem: (productId: string) => Promise<void>;
+  updateQuantity: (productId: string, quantity: number) => Promise<void>;
+  clearCart: () => Promise<void>;
 }
 
 export const useCartStore = create<CartStore>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       items: [],
-      addItem: (productId) =>
+      hydrateFromServer: async () => {
+        const token = getStoredAuthToken();
+        if (!token) return;
+        try {
+          const data = await getCart(token);
+          set({ items: data.items.map((item) => ({ productId: item.productId, quantity: item.quantity, itemId: item.itemId })) });
+        } catch {
+          // Keep local fallback if backend unavailable.
+        }
+      },
+      addItem: async (productId) => {
         set((state) => {
           const existing = state.items.find((item) => item.productId === productId);
           if (existing) {
@@ -31,18 +45,56 @@ export const useCartStore = create<CartStore>()(
             };
           }
           return { items: [...state.items, { productId, quantity: 1 }] };
-        }),
-      removeItem: (productId) =>
+        });
+        const token = getStoredAuthToken();
+        if (!token) return;
+        try {
+          await addCartItem(token, { productId, quantity: 1 });
+          await get().hydrateFromServer();
+        } catch {
+          // Ignore sync errors to keep UX responsive.
+        }
+      },
+      removeItem: async (productId) => {
+        const before = get().items.find((item) => item.productId === productId);
         set((state) => ({
           items: state.items.filter((item) => item.productId !== productId),
-        })),
-      updateQuantity: (productId, quantity) =>
+        }));
+        const token = getStoredAuthToken();
+        if (!token || !before?.itemId) return;
+        try {
+          await removeCartItem(token, before.itemId);
+          await get().hydrateFromServer();
+        } catch {}
+      },
+      updateQuantity: async (productId, quantity) => {
         set((state) => ({
           items: state.items.map((item) =>
             item.productId === productId ? { ...item, quantity } : item
           ),
-        })),
-      clearCart: () => set({ items: [] }),
+        }));
+        const token = getStoredAuthToken();
+        const current = get().items.find((item) => item.productId === productId);
+        if (!token || !current?.itemId) return;
+        try {
+          await updateCartItem(token, current.itemId, { quantity });
+          await get().hydrateFromServer();
+        } catch {}
+      },
+      clearCart: async () => {
+        const token = getStoredAuthToken();
+        const snapshot = [...get().items];
+        set({ items: [] });
+        if (!token) return;
+        try {
+          await Promise.all(
+            snapshot
+              .filter((item) => Boolean(item.itemId))
+              .map((item) => removeCartItem(token, item.itemId!))
+          );
+          await get().hydrateFromServer();
+        } catch {}
+      },
     }),
     { name: 'nyra-cart' }
   )

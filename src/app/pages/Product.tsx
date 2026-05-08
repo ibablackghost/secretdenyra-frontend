@@ -56,7 +56,7 @@ export const Product = () => {
   }, [product?.id]);
 
   useEffect(() => {
-    if (product?.id) pushViewed(product.id);
+    if (product?.id) void pushViewed(product.id);
   }, [product?.id, pushViewed]);
 
   useEffect(() => {

@@ -70,11 +70,11 @@ export const Account = () => {
     return '';
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     try {
-      updateProfile({
+      await updateProfile({
         firstName: firstName.trim() || user.firstName,
         lastName: lastName.trim() || user.lastName,
         phone: phone.trim(),
@@ -87,7 +87,7 @@ export const Account = () => {
     }
   };
 
-  const handleAddAddress = (e: React.FormEvent) => {
+  const handleAddAddress = async (e: React.FormEvent) => {
     e.preventDefault();
     setAddressError('');
     const validationError = validateAddressForm();
@@ -97,11 +97,11 @@ export const Account = () => {
       return;
     }
     if (editingAddressId) {
-      updateAddress(editingAddressId, addressForm);
+      await updateAddress(editingAddressId, addressForm);
       success('Adresse mise à jour.');
       setEditingAddressId(null);
     } else {
-      addAddress(addressForm);
+      await addAddress(addressForm);
       success('Adresse ajoutée.');
     }
     setAddressForm({
@@ -307,10 +307,10 @@ export const Account = () => {
                       >
                         Éditer
                       </button>
-                      <button type="button" className="text-xs font-semibold text-gray-600 hover:underline" onClick={() => setDefaultAddress(address.id)}>
+                      <button type="button" className="text-xs font-semibold text-gray-600 hover:underline" onClick={() => void setDefaultAddress(address.id)}>
                         Définir par défaut
                       </button>
-                      <button type="button" className="text-xs font-semibold text-red-600 hover:underline" onClick={() => removeAddress(address.id)}>
+                      <button type="button" className="text-xs font-semibold text-red-600 hover:underline" onClick={() => void removeAddress(address.id)}>
                         Supprimer
                       </button>
                     </div>

@@ -1,0 +1,170 @@
+import { requestJson } from './httpClient';
+
+const STRAPI_URL = import.meta.env.VITE_STRAPI_URL;
+
+function ensureBaseUrl() {
+  if (!STRAPI_URL) {
+    throw new Error('VITE_STRAPI_URL est manquant. Configurez votre backend Strapi.');
+  }
+  return STRAPI_URL;
+}
+
+function url(path: string) {
+  return `${ensureBaseUrl()}${path}`;
+}
+
+function authHeaders(token: string) {
+  return { Authorization: `Bearer ${token}` };
+}
+
+export type RemoteCartItem = { productId: string; quantity: number; itemId?: string };
+export type RemoteAddress = {
+  id: string;
+  label: string;
+  line1: string;
+  line2?: string;
+  city: string;
+  region?: string;
+  postalCode?: string;
+  country: string;
+  isDefault?: boolean;
+};
+
+export type RemoteOrder = {
+  id: string;
+  createdAt: string;
+  status: 'paid' | 'pending' | 'failed' | 'refunded';
+  paymentMethod: string;
+  subtotal: number;
+  shippingFee: number;
+  total: number;
+  customer: { firstName: string; lastName: string; email: string; phone: string };
+  shippingAddress: {
+    line1: string;
+    line2: string;
+    city: string;
+    region: string;
+    postalCode: string;
+    country: string;
+  };
+  billingAddress: {
+    line1: string;
+    line2: string;
+    city: string;
+    region: string;
+    postalCode: string;
+    country: string;
+  };
+  items: Array<{ productId: string; name: string; unitPrice: number; quantity: number }>;
+};
+
+export async function getCart(token: string) {
+  return requestJson<{ items: RemoteCartItem[] }>(url('/api/cart'), {
+    method: 'GET',
+    headers: authHeaders(token),
+  });
+}
+
+export async function addCartItem(token: string, input: { productId: string; quantity: number }) {
+  return requestJson<{ items: RemoteCartItem[] }>(url('/api/cart/items'), {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: input,
+  });
+}
+
+export async function updateCartItem(token: string, itemId: string, input: { quantity: number }) {
+  return requestJson<{ items: RemoteCartItem[] }>(url(`/api/cart/items/${itemId}`), {
+    method: 'PATCH',
+    headers: authHeaders(token),
+    body: input,
+  });
+}
+
+export async function removeCartItem(token: string, itemId: string) {
+  return requestJson<{ items: RemoteCartItem[] }>(url(`/api/cart/items/${itemId}`), {
+    method: 'DELETE',
+    headers: authHeaders(token),
+  });
+}
+
+export async function getWishlist(token: string) {
+  return requestJson<{ items: Array<{ productId: string }> }>(url('/api/me/wishlist'), {
+    method: 'GET',
+    headers: authHeaders(token),
+  });
+}
+
+export async function addWishlistItem(token: string, productId: string) {
+  return requestJson<{ items: Array<{ productId: string }> }>(url('/api/me/wishlist/items'), {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: { productId },
+  });
+}
+
+export async function removeWishlistItem(token: string, productId: string) {
+  return requestJson<{ items: Array<{ productId: string }> }>(url(`/api/me/wishlist/items/${productId}`), {
+    method: 'DELETE',
+    headers: authHeaders(token),
+  });
+}
+
+export async function getAddresses(token: string) {
+  return requestJson<{ items: RemoteAddress[] }>(url('/api/me/addresses'), {
+    method: 'GET',
+    headers: authHeaders(token),
+  });
+}
+
+export async function createAddress(token: string, input: Omit<RemoteAddress, 'id'>) {
+  return requestJson<RemoteAddress>(url('/api/me/addresses'), {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: input,
+  });
+}
+
+export async function patchAddress(token: string, id: string, input: Partial<Omit<RemoteAddress, 'id'>>) {
+  return requestJson<RemoteAddress>(url(`/api/me/addresses/${id}`), {
+    method: 'PATCH',
+    headers: authHeaders(token),
+    body: input,
+  });
+}
+
+export async function deleteAddress(token: string, id: string) {
+  return requestJson<{ success: boolean }>(url(`/api/me/addresses/${id}`), {
+    method: 'DELETE',
+    headers: authHeaders(token),
+  });
+}
+
+export async function setDefaultAddressRemote(token: string, id: string) {
+  return requestJson<{ success: boolean }>(url(`/api/me/addresses/${id}/default`), {
+    method: 'POST',
+    headers: authHeaders(token),
+  });
+}
+
+export async function getOrders(token: string) {
+  return requestJson<{ items: RemoteOrder[] }>(url('/api/me/orders?page=1&pageSize=20'), {
+    method: 'GET',
+    headers: authHeaders(token),
+  });
+}
+
+export async function getViewedProducts(token: string) {
+  return requestJson<{ items: Array<{ productId: string }> }>(url('/api/me/viewed-products'), {
+    method: 'GET',
+    headers: authHeaders(token),
+  });
+}
+
+export async function pushViewedProduct(token: string, productId: string) {
+  return requestJson<{ success: boolean }>(url('/api/me/viewed-products'), {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: { productId },
+  });
+}

@@ -187,7 +187,7 @@ export const Checkout = () => {
         quantity: item.quantity,
       })),
     });
-    clearCart();
+    await clearCart();
     trackCheckoutStepComplete(3, STEP_LABELS[3]);
     success(`Paiement validé. Commande ${orderId} créée.`);
     navigate('/');

@@ -5,12 +5,12 @@ import { NyraButton, NyraFormCard, NyraFormError, NyraInput, NyraLabel } from '.
 
 export const Register = () => {
   const register = useAuthStore((s) => s.register);
-  const sessionUser = useAuthStore((s) => s.user);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (sessionUser) navigate('/account', { replace: true });
-  }, [sessionUser, navigate]);
+    if (isAuthenticated) navigate('/account', { replace: true });
+  }, [isAuthenticated, navigate]);
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -18,20 +18,24 @@ export const Register = () => {
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     if (password !== confirm) {
       setError('Les mots de passe ne correspondent pas.');
       return;
     }
-    const res = register({ email, password, firstName, lastName });
-    if (!res.ok) {
-      setError(res.message);
-      return;
+    setIsSubmitting(true);
+    try {
+      await register({ email, password, firstName, lastName });
+      navigate('/account', { replace: true });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Impossible de créer le compte.");
+    } finally {
+      setIsSubmitting(false);
     }
-    navigate('/account', { replace: true });
   };
 
   return (
@@ -102,8 +106,8 @@ export const Register = () => {
             />
           </div>
           <NyraFormError message={error} />
-          <NyraButton type="submit" className="w-full">
-            S&apos;inscrire
+          <NyraButton type="submit" className="w-full" disabled={isSubmitting}>
+            {isSubmitting ? 'Création...' : "S'inscrire"}
           </NyraButton>
         </form>
         <p className="mt-6 text-center text-sm text-gray-600 font-['Mulish',sans-serif]">
