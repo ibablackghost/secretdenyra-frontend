@@ -16,7 +16,26 @@ const Wishlist = lazy(() => import('./pages/Wishlist').then((m) => ({ default: m
 function withSuspense(Component: ComponentType) {
   return function SuspendedRoute() {
     return (
-      <Suspense fallback={<div className="mx-auto max-w-[1400px] px-4 py-12 text-gray-500">Chargement...</div>}>
+      <Suspense
+        fallback={
+          <div className="mx-auto max-w-[1400px] px-4 py-12 md:px-8" role="status" aria-live="polite" aria-label="Chargement de la page">
+            <span className="sr-only">Chargement de la page</span>
+            <div className="animate-pulse">
+              <div className="mb-8 h-10 w-64 rounded-xl bg-gray-200/80" />
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                {Array.from({ length: 6 }).map((_, index) => (
+                  <div key={`route-skeleton-${index}`} className="rounded-[14px] border border-gray-100 bg-white p-4">
+                    <div className="h-44 w-full rounded-[10px] bg-gray-200/80" />
+                    <div className="mt-4 h-4 w-3/4 rounded bg-gray-200/80" />
+                    <div className="mt-3 h-4 w-1/2 rounded bg-gray-200/70" />
+                    <div className="mt-6 h-10 w-full rounded-full bg-gray-200/80" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        }
+      >
         <Component />
       </Suspense>
     );
