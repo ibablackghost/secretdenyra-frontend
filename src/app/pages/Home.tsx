@@ -1,17 +1,34 @@
 import image_Gemini_Generated_Image_4hyvy04hyvy04hyv_1 from '@/imports/Gemini_Generated_Image_4hyvy04hyvy04hyv_1.png';
 import imgLogo from 'figma:asset/04c30533fe5a9a60b6e7341851231c595d46cb74.png';
 import { Link } from 'react-router';
-import { ArrowRight, Star, Heart } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { useCartStore } from '../store/cartStore';
 import { useWishlistStore } from '../store/wishlistStore';
 import { UIProduct } from '../lib/catalog';
 import { useCatalog } from '../lib/useCatalog';
-import { formatPrice } from '../lib/price';
+import { ErrorState, LoadingState } from '../components/ui/AsyncState';
+import { ProductCard } from '../features/catalog/components/ProductCard';
+import { useToast } from '../hooks/useToast';
+import { useSeo } from '../hooks/useSeo';
+import { trackAddToCart } from '../services/analytics/tracking';
 
 const ProductGrid = ({ title, products }: { title: string; products: UIProduct[] }) => {
   const { addItem } = useCartStore();
   const toggleWishlist = useWishlistStore((s) => s.toggle);
   const wishIds = useWishlistStore((s) => s.ids);
+  const { success, info } = useToast();
+
+  const handleAddToCart = (product: UIProduct) => {
+    addItem(product.id);
+    trackAddToCart(product, 1);
+    success(`Ajouté au panier: ${product.name}`);
+  };
+
+  const handleToggleWishlist = (product: UIProduct, wished: boolean) => {
+    toggleWishlist(product.id);
+    info(wished ? `Retiré des favoris: ${product.name}` : `Ajouté aux favoris: ${product.name}`);
+  };
+
   return (
     <section className="max-w-[1400px] mx-auto px-4 md:px-8 py-16">
       <div className="flex justify-between items-end mb-12">
@@ -23,51 +40,13 @@ const ProductGrid = ({ title, products }: { title: string; products: UIProduct[]
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
         {products.map((product) => (
-          <div
+          <ProductCard
             key={product.id}
-            className="group flex flex-col gap-4"
-          >
-            <div className={`relative ${product.bgClass} aspect-[4/5] overflow-hidden rounded-[10px] transition-transform group-hover:scale-[1.02]`}>
-              <Link to={`/product/${product.slug}`} className="absolute inset-0 flex items-center justify-center p-4">
-                <div className="absolute left-4 top-4 z-[1] flex items-center gap-1 rounded-[4px] bg-white/80 px-2 py-1 backdrop-blur-sm">
-                  <Star className="h-3 w-3 fill-current text-black" />
-                  <span className="text-xs font-bold">{product.rating}</span>
-                  <span className="text-xs text-gray-500">({product.reviews})</span>
-                </div>
-                <img src={product.image} alt={product.name} className="relative z-0 h-auto w-[80%] object-contain drop-shadow-md" />
-              </Link>
-              <button
-                type="button"
-                aria-label={wishIds.includes(product.id) ? 'Retirer des favoris' : 'Ajouter aux favoris'}
-                className="absolute right-4 top-4 z-[2] flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-gray-600 shadow-sm transition-colors hover:bg-white"
-                onClick={(e) => {
-                  e.preventDefault();
-                  toggleWishlist(product.id);
-                }}
-              >
-                <Heart className={`h-5 w-5 ${wishIds.includes(product.id) ? 'fill-[#c45c5c] text-[#c45c5c]' : ''}`} />
-              </button>
-            </div>
-            
-            <div className="flex flex-col gap-1">
-              <Link to={`/product/${product.slug}`}>
-                <h3 className="font-medium text-[#1a1a1a] group-hover:text-[#a4a374] transition-colors">{product.name}</h3>
-                <p className="text-xs text-gray-500 truncate">{product.ingredients}</p>
-              </Link>
-              <div className="flex items-center justify-between mt-2">
-                <span className="font-bold text-[#303030]">{formatPrice(product.price)}</span>
-                <button 
-                  onClick={() => addItem(product.id)}
-                  className="w-8 h-8 rounded-full bg-[#1a1a1a] flex items-center justify-center hover:bg-[#a4a374] transition-colors cursor-pointer"
-                  aria-label="Add to cart"
-                >
-                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M8 1V15M1 8H15" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </button>
-              </div>
-            </div>
-          </div>
+            product={product}
+            wished={wishIds.includes(product.id)}
+            onToggleWishlist={handleToggleWishlist}
+            onAddToCart={handleAddToCart}
+          />
         ))}
       </div>
     </section>
@@ -76,6 +55,11 @@ const ProductGrid = ({ title, products }: { title: string; products: UIProduct[]
 
 export const Home = () => {
   const { products, tags, loading, error } = useCatalog();
+  useSeo({
+    title: 'Accueil',
+    description: 'Thés et infusions bio premium pour votre bien-être.',
+    canonicalPath: '/',
+  });
 
   return (
     <div className="w-full pb-20">
@@ -98,6 +82,7 @@ export const Home = () => {
             <img 
               src={image_Gemini_Generated_Image_4hyvy04hyvy04hyv_1} 
               alt="Tea preparation" 
+              loading="eager"
               className="w-full h-auto object-cover max-w-[800px] ml-auto mix-blend-multiply"
             />
             {/* Gradient overlay from design to blend bottom edge if needed */}
@@ -109,11 +94,11 @@ export const Home = () => {
       {/* Featured Products */}
       {loading ? (
         <section className="max-w-[1400px] mx-auto px-4 md:px-8 py-16">
-          <p className="text-gray-500">Chargement des produits...</p>
+          <LoadingState message="Chargement des produits..." className="py-4" />
         </section>
       ) : error ? (
         <section className="max-w-[1400px] mx-auto px-4 md:px-8 py-16">
-          <p className="text-red-600">{error}</p>
+          <ErrorState message={error} className="py-4" />
         </section>
       ) : (
         <ProductGrid title="Les favoris de nos clients" products={products} />
@@ -137,7 +122,7 @@ export const Home = () => {
               style={{ animationDelay: `${index * 60}ms` }}
             >
               <div className="w-full aspect-square rounded-full bg-white shadow-sm overflow-hidden flex items-center justify-center p-4 border border-gray-100 group-hover:border-[#a4a374] transition-colors">
-                <img src={cat.image} alt={cat.name} className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-300" />
+                <img src={cat.image} alt={cat.name} loading="lazy" className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-300" />
               </div>
               <span className="font-semibold text-sm text-[#1a1a1a] group-hover:text-[#a4a374] transition-colors">{cat.name}</span>
             </Link>
@@ -173,9 +158,9 @@ export const Home = () => {
              </ul>
            </div>
            <div className="w-full md:w-1/2 h-full min-h-[400px] relative">
-             <img src={imgLogo} alt="Bien-être" className="w-full h-full object-cover mix-blend-multiply opacity-5" />
+             <img src={imgLogo} alt="Bien-être" loading="lazy" className="w-full h-full object-cover mix-blend-multiply opacity-5" />
              {/* If we had the actual image of the girl with the towel, we'd use it here. I'll use unsplash tool for a suitable image since it wasn't provided in the extracted assets */}
-             <img src="https://images.unsplash.com/photo-1620402602751-84569d1f5191?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxibGFjayUyMHdvbWFuJTIwZml0bmVzcyUyMGhvbGRpbmclMjB3YXRlciUyMGJvdHRsZXxlbnwxfHx8fDE3Nzc3NzgwOTZ8MA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral" alt="Wellness routine" className="absolute inset-0 w-full h-full object-cover" />
+             <img src="https://images.unsplash.com/photo-1620402602751-84569d1f5191?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxibGFjayUyMHdvbWFuJTIwZml0bmVzcyUyMGhvbGRpbmclMjB3YXRlciUyMGJvdHRsZXxlbnwxfHx8fDE3Nzc3NzgwOTZ8MA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral" alt="Wellness routine" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
            </div>
         </div>
       </section>

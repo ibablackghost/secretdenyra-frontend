@@ -1,26 +1,44 @@
 import { useState, useMemo, useEffect } from 'react';
-import { useSearchParams, Link } from 'react-router';
-import { Star, SlidersHorizontal, Search, RotateCcw, Heart, X } from 'lucide-react';
+import { useSearchParams, Link, useParams } from 'react-router';
+import { SlidersHorizontal, Search, RotateCcw, X } from 'lucide-react';
 import { useCartStore } from '../store/cartStore';
 import { useWishlistStore } from '../store/wishlistStore';
 import { productMatchesQuery } from '../lib/search';
 import { useCatalog } from '../lib/useCatalog';
-import { formatPrice } from '../lib/price';
+import { EmptyState, ErrorState, LoadingState } from '../components/ui/AsyncState';
+import { ProductCard } from '../features/catalog/components/ProductCard';
+import { useToast } from '../hooks/useToast';
+import type { UIProduct } from '../features/catalog/types';
+import { useSeo } from '../hooks/useSeo';
+import { trackAddToCart } from '../services/analytics/tracking';
 
 export const Shop = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const categoryFilter = searchParams.get('category') ?? searchParams.get('tag');
-  const teaFamilyTagFilter = searchParams.get('teaTag');
+  const { categorySlug } = useParams();
+  const categoryFilter = categorySlug ?? searchParams.get('category') ?? '';
+  const teaFamilyTagFilter = searchParams.get('teaTag') ?? '';
   const urlQ = searchParams.get('q') ?? '';
+  const sortBy = searchParams.get('sort') ?? 'popular';
+  const priceMax = Number(searchParams.get('priceMax') ?? '50000');
+  const page = Math.max(1, Number(searchParams.get('page') ?? '1'));
+  const pageSize = Math.max(1, Number(searchParams.get('pageSize') ?? '12'));
 
   const [inputValue, setInputValue] = useState(urlQ);
-  const [sortBy, setSortBy] = useState('popular');
-  const [priceRange, setPriceRange] = useState([0, 50000]);
 
   const { addItem } = useCartStore();
   const toggleWishlist = useWishlistStore((s) => s.toggle);
   const wishIds = useWishlistStore((s) => s.ids);
   const { products, categories, tags, loading, error } = useCatalog();
+  const { success, info } = useToast();
+
+  const selectedCategoryName = categoryFilter ? categories.find((c) => c.slug === categoryFilter)?.name : '';
+  useSeo({
+    title: selectedCategoryName ? `${selectedCategoryName} - Boutique` : 'Boutique',
+    description: selectedCategoryName
+      ? `Découvrez notre sélection ${selectedCategoryName} avec filtres et tri.`
+      : 'Catalogue Secret de Nyra: thés, infusions et accessoires.',
+    canonicalPath: categoryFilter ? `/shop/category/${categoryFilter}` : '/shop',
+  });
 
   useEffect(() => {
     setInputValue(urlQ);
@@ -30,12 +48,11 @@ export const Shop = () => {
     const t = window.setTimeout(() => {
       setSearchParams(
         (prev) => {
-          const cur = (prev.get('q') ?? '').trim();
           const next = inputValue.trim();
-          if (cur === next) return prev;
           const n = new URLSearchParams(prev);
           if (next) n.set('q', next);
           else n.delete('q');
+          n.set('page', '1');
           return n;
         },
         { replace: true }
@@ -61,7 +78,7 @@ export const Shop = () => {
       result = result.filter((p) => productMatchesQuery(p, inputValue));
     }
     
-    result = result.filter(p => p.price >= priceRange[0] && p.price <= priceRange[1]);
+    result = result.filter((p) => p.price >= 0 && p.price <= priceMax);
     
     if (sortBy === 'price-low') {
       result.sort((a, b) => a.price - b.price);
@@ -72,7 +89,34 @@ export const Shop = () => {
     }
     
     return result;
-  }, [categoryFilter, teaFamilyTagFilter, inputValue, priceRange, sortBy, products]);
+  }, [categoryFilter, teaFamilyTagFilter, inputValue, priceMax, sortBy, products]);
+
+  const totalItems = filteredProducts.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const paginatedProducts = filteredProducts.slice((safePage - 1) * pageSize, safePage * pageSize);
+
+  const updateQuery = (entries: Record<string, string | null>) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      Object.entries(entries).forEach(([key, value]) => {
+        if (value === null || value === '') next.delete(key);
+        else next.set(key, value);
+      });
+      return next;
+    });
+  };
+
+  const handleAddToCart = (product: UIProduct) => {
+    addItem(product.id);
+    trackAddToCart(product, 1);
+    success(`Ajouté au panier: ${product.name}`);
+  };
+
+  const handleToggleWishlist = (product: UIProduct, wished: boolean) => {
+    toggleWishlist(product.id);
+    info(wished ? `Retiré des favoris: ${product.name}` : `Ajouté aux favoris: ${product.name}`);
+  };
 
   return (
     <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-12 flex flex-col md:flex-row gap-12">
@@ -86,12 +130,15 @@ export const Shop = () => {
           <button 
             onClick={() => {
               setInputValue('');
-              setPriceRange([0, 50000]);
-              searchParams.delete('tag');
-              searchParams.delete('category');
-              searchParams.delete('teaTag');
-              searchParams.delete('q');
-              setSearchParams(searchParams);
+              updateQuery({
+                category: null,
+                teaTag: null,
+                q: null,
+                sort: 'popular',
+                page: '1',
+                pageSize: String(pageSize),
+                priceMax: '50000',
+              });
             }}
             className="w-8 h-8 flex items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:text-black hover:border-black transition-colors"
           >
@@ -108,13 +155,13 @@ export const Shop = () => {
               min="0" 
               max="50000" 
               step="1000"
-              value={priceRange[1]} 
-              onChange={(e) => setPriceRange([0, Number(e.target.value)])}
+              value={priceMax}
+              onChange={(e) => updateQuery({ priceMax: String(Number(e.target.value)), page: '1' })}
               className="w-full accent-black h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer"
             />
             <div className="flex items-center justify-between text-sm text-gray-600 mt-4">
               <span>0</span>
-              <span className="font-bold text-black">{priceRange[1]}</span>
+              <span className="font-bold text-black">{priceMax}</span>
             </div>
           </div>
         </div>
@@ -158,9 +205,7 @@ export const Shop = () => {
                 name="category"
                 checked={!categoryFilter}
                 onChange={() => {
-                  searchParams.delete('tag');
-                  searchParams.delete('category');
-                  setSearchParams(searchParams);
+                  updateQuery({ category: null, page: '1' });
                 }}
                 className="w-4 h-4 text-black border-gray-300 focus:ring-black cursor-pointer accent-black"
               />
@@ -175,9 +220,7 @@ export const Shop = () => {
                   name="category"
                   checked={categoryFilter === cat.slug}
                   onChange={() => {
-                    searchParams.set('category', cat.slug);
-                    searchParams.delete('tag');
-                    setSearchParams(searchParams);
+                    updateQuery({ category: cat.slug, page: '1' });
                   }}
                   className="w-4 h-4 text-black border-gray-300 focus:ring-black cursor-pointer accent-black"
                 />
@@ -200,8 +243,7 @@ export const Shop = () => {
                   name="teaTag"
                   checked={!teaFamilyTagFilter}
                   onChange={() => {
-                    searchParams.delete('teaTag');
-                    setSearchParams(searchParams);
+                    updateQuery({ teaTag: null, page: '1' });
                   }}
                   className="w-4 h-4 text-black border-gray-300 focus:ring-black cursor-pointer accent-black"
                 />
@@ -216,8 +258,7 @@ export const Shop = () => {
                     name="teaTag"
                     checked={teaFamilyTagFilter === tag.slug}
                     onChange={() => {
-                      searchParams.set('teaTag', tag.slug);
-                      setSearchParams(searchParams);
+                      updateQuery({ teaTag: tag.slug, page: '1' });
                     }}
                     className="w-4 h-4 text-black border-gray-300 focus:ring-black cursor-pointer accent-black"
                   />
@@ -263,7 +304,7 @@ export const Shop = () => {
             </div>
             {inputValue.trim() ? (
               <p className="mt-2 text-sm text-gray-600 font-['Mulish',sans-serif]">
-                {filteredProducts.length} résultat{filteredProducts.length !== 1 ? 's' : ''} pour «{' '}
+                {totalItems} résultat{totalItems !== 1 ? 's' : ''} pour «{' '}
                 <span className="font-semibold text-[#1a1a1a]">{inputValue.trim()}</span> » (accents ignorés)
               </p>
             ) : (
@@ -288,9 +329,9 @@ export const Shop = () => {
             
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-gray-500">Sort by</span>
-              <select 
+              <select
                 value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
+                onChange={(e) => updateQuery({ sort: e.target.value, page: '1' })}
                 className="bg-transparent border-none text-sm font-bold text-[#1a1a1a] focus:outline-none cursor-pointer"
               >
                 <option value="popular">Popularity</option>
@@ -303,95 +344,68 @@ export const Shop = () => {
         </div>
 
         {loading ? (
-          <div className="py-20 text-center text-gray-500">Chargement des produits...</div>
+          <LoadingState message="Chargement des produits..." className="py-20" />
         ) : error ? (
-          <div className="py-20 text-center text-red-600">{error}</div>
-        ) : filteredProducts.length > 0 ? (
+          <ErrorState message={error} className="py-20" />
+        ) : paginatedProducts.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredProducts.map((product) => (
-              <div key={product.id} className="group flex flex-col gap-4">
-                <div className={`relative ${product.bgClass} aspect-[4/5] overflow-hidden rounded-[10px] transition-transform group-hover:scale-[1.02]`}>
-                  <Link
-                    to={`/product/${product.slug}`}
-                    className="absolute inset-0 flex items-center justify-center p-4"
-                  >
-                    <div className="absolute left-4 top-4 z-[1] flex items-center gap-1 rounded-[4px] bg-white/80 px-2 py-1 backdrop-blur-sm">
-                      <Star className="h-3 w-3 fill-current text-black" />
-                      <span className="text-xs font-bold">{product.rating}</span>
-                    </div>
-                    <img
-                      src={product.image}
-                      alt={product.name}
-                      className="relative z-0 h-auto w-[80%] object-contain drop-shadow-md"
-                    />
-                  </Link>
-                  <button
-                    type="button"
-                    aria-label={wishIds.includes(product.id) ? 'Retirer des favoris' : 'Ajouter aux favoris'}
-                    className="absolute right-4 top-4 z-[2] flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-gray-600 shadow-sm transition-colors hover:bg-white"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      toggleWishlist(product.id);
-                    }}
-                  >
-                    <Heart
-                      className={`h-5 w-5 ${wishIds.includes(product.id) ? 'fill-[#c45c5c] text-[#c45c5c]' : ''}`}
-                    />
-                  </button>
-                </div>
-                
-                <div className="flex flex-col gap-1">
-                  <Link to={`/product/${product.slug}`}>
-                    <h3 className="font-medium text-[#1a1a1a] group-hover:text-[#a4a374] transition-colors">{product.name}</h3>
-                    <p className="text-xs text-gray-500 truncate">{product.ingredients}</p>
-                  </Link>
-                  <div className="flex items-center justify-between mt-2">
-                    <span className="font-bold text-[#303030]">{formatPrice(product.price)}</span>
-                    <button 
-                      onClick={() => addItem(product.id)}
-                      className="w-8 h-8 rounded-full bg-[#1a1a1a] flex items-center justify-center hover:bg-[#a4a374] transition-colors"
-                    >
-                      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M8 1V15M1 8H15" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              </div>
+            {paginatedProducts.map((product) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                wished={wishIds.includes(product.id)}
+                onToggleWishlist={handleToggleWishlist}
+                onAddToCart={handleAddToCart}
+              />
             ))}
           </div>
         ) : (
-          <div className="py-20 text-center flex flex-col items-center">
-            <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">
-              <Search className="w-8 h-8 text-gray-300" />
-            </div>
-            <h3 className="text-lg font-medium text-[#1a1a1a] mb-2">Aucun produit trouvé</h3>
-            <p className="text-gray-500">Essayez d'ajuster vos filtres ou votre recherche.</p>
-            <button 
-              onClick={() => {
-                setInputValue('');
-                setPriceRange([0, 50000]);
-                searchParams.delete('tag');
-                searchParams.delete('category');
-                searchParams.delete('teaTag');
-                searchParams.delete('q');
-                setSearchParams(searchParams);
-              }}
-              className="mt-6 text-[#a4a374] font-medium hover:underline"
-            >
-              Réinitialiser les filtres
-            </button>
-          </div>
+          <EmptyState
+            title="Aucun produit trouvé"
+            description="Essayez d'ajuster vos filtres ou votre recherche."
+            className="py-20"
+            action={
+              <button
+                onClick={() => {
+                  setInputValue('');
+                  updateQuery({
+                    category: null,
+                    teaTag: null,
+                    q: null,
+                    sort: 'popular',
+                    page: '1',
+                    pageSize: String(pageSize),
+                    priceMax: '50000',
+                  });
+                }}
+                className="text-[#a4a374] font-medium hover:underline"
+              >
+                Réinitialiser les filtres
+              </button>
+            }
+          />
         )}
 
         {/* Pagination */}
-        {filteredProducts.length > 0 && (
+        {totalItems > 0 && (
           <div className="flex justify-center items-center gap-2 mt-12">
-            <button className="w-10 h-10 flex items-center justify-center rounded-[8px] bg-black text-white font-medium">1</button>
-            <button className="w-10 h-10 flex items-center justify-center rounded-[8px] hover:bg-gray-50 text-gray-600 font-medium transition-colors">2</button>
-            <button className="w-10 h-10 flex items-center justify-center rounded-[8px] hover:bg-gray-50 text-gray-600 font-medium transition-colors">3</button>
-            <span className="text-gray-400">...</span>
-            <button className="px-4 h-10 flex items-center justify-center rounded-[8px] hover:bg-gray-50 text-gray-600 font-medium transition-colors">Next &gt;</button>
+            <button
+              className="px-4 h-10 flex items-center justify-center rounded-[8px] hover:bg-gray-50 text-gray-600 font-medium transition-colors disabled:opacity-40"
+              onClick={() => updateQuery({ page: String(safePage - 1) })}
+              disabled={safePage <= 1}
+            >
+              &lt; Prev
+            </button>
+            <span className="text-sm text-gray-600">
+              Page {safePage} / {totalPages}
+            </span>
+            <button
+              className="px-4 h-10 flex items-center justify-center rounded-[8px] hover:bg-gray-50 text-gray-600 font-medium transition-colors disabled:opacity-40"
+              onClick={() => updateQuery({ page: String(safePage + 1) })}
+              disabled={safePage >= totalPages}
+            >
+              Next &gt;
+            </button>
           </div>
         )}
       </div>

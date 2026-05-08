@@ -1,12 +1,24 @@
-import { Link } from 'react-router';
+import { useEffect, useMemo, useRef } from 'react';
+import { Link, useNavigate } from 'react-router';
 import { useCartStore } from '../store/cartStore';
-import { Trash2, ArrowRight, Minus, Plus, ShoppingBag } from 'lucide-react';
+import { Trash2, ArrowRight, Minus, Plus } from 'lucide-react';
 import { useCatalog } from '../lib/useCatalog';
 import { formatPrice } from '../lib/price';
+import { EmptyState, ErrorState, LoadingState } from '../components/ui/AsyncState';
+import { useToast } from '../hooks/useToast';
+import {
+  toCheckoutTrackedItem,
+  trackBeginCheckout,
+  trackCartAbandoned,
+  trackRemoveFromCart,
+} from '../services/analytics/tracking';
 
 export const Cart = () => {
   const { items, removeItem, updateQuantity } = useCartStore();
   const { products, loading, error } = useCatalog();
+  const { success, info } = useToast();
+  const navigate = useNavigate();
+  const checkoutStartedRef = useRef(false);
 
   const cartProducts = items
     .map((item) => {
@@ -15,31 +27,85 @@ export const Cart = () => {
     })
     .filter((item): item is NonNullable<typeof item> => Boolean(item));
 
+  const trackedItems = useMemo(
+    () =>
+      cartProducts.map((item) =>
+        toCheckoutTrackedItem({
+          productId: item.id,
+          name: item.name,
+          unitPrice: item.price,
+          quantity: item.quantity,
+        })
+      ),
+    [cartProducts]
+  );
+
   const subtotal = cartProducts.reduce((acc, item) => acc + (item.price * item.quantity), 0);
   const shipping = subtotal > 45000 || subtotal === 0 ? 0 : 2500;
   const total = subtotal + shipping;
 
+  const handleRemove = (productId: string, productName: string) => {
+    const product = cartProducts.find((item) => item.id === productId);
+    removeItem(productId);
+    if (product) trackRemoveFromCart(product, product.quantity);
+    info(`Article retiré du panier: ${productName}`);
+  };
+
+  const handleQuantityDown = (productId: string, quantity: number, productName: string) => {
+    if (quantity > 1) {
+      const product = cartProducts.find((item) => item.id === productId);
+      if (product) trackRemoveFromCart(product, 1);
+      updateQuantity(productId, quantity - 1);
+      return;
+    }
+    removeItem(productId);
+    const product = cartProducts.find((item) => item.id === productId);
+    if (product) trackRemoveFromCart(product, 1);
+    info(`Article retiré du panier: ${productName}`);
+  };
+
+  const handleCheckout = () => {
+    checkoutStartedRef.current = true;
+    trackBeginCheckout(trackedItems, total);
+    success('Passage au checkout.');
+    navigate('/checkout');
+  };
+
+  useEffect(() => {
+    const onPageHide = () => {
+      if (checkoutStartedRef.current || trackedItems.length === 0) return;
+      trackCartAbandoned(trackedItems, total, 'page_exit');
+    };
+
+    window.addEventListener('pagehide', onPageHide);
+    return () => {
+      window.removeEventListener('pagehide', onPageHide);
+      if (checkoutStartedRef.current || trackedItems.length === 0) return;
+      trackCartAbandoned(trackedItems, total, 'route_change');
+    };
+  }, [trackedItems, total]);
+
   if (items.length === 0) {
     return (
-      <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-20 flex flex-col items-center justify-center text-center">
-        <div className="w-24 h-24 bg-gray-50 rounded-full flex items-center justify-center mb-6">
-          <ShoppingBag className="w-10 h-10 text-gray-300" />
-        </div>
-        <h1 className="text-3xl font-bold text-[#1a1a1a] mb-4">Votre panier est vide</h1>
-        <p className="text-gray-500 mb-8 max-w-md">Découvrez nos mélanges exclusifs de plantes bio et commencez votre rituel bien-être dès aujourd'hui.</p>
-        <Link to="/shop" className="bg-[#a4a374] text-white px-8 py-4 rounded-full font-semibold hover:bg-[#8d8c5d] transition-colors">
-          Découvrir la boutique
-        </Link>
-      </div>
+      <EmptyState
+        className="max-w-[1400px] mx-auto px-4 md:px-8 py-20"
+        title="Votre panier est vide"
+        description="Découvrez nos mélanges exclusifs de plantes bio et commencez votre rituel bien-être dès aujourd'hui."
+        action={
+          <Link to="/shop" className="bg-[#a4a374] text-white px-8 py-4 rounded-full font-semibold hover:bg-[#8d8c5d] transition-colors">
+            Découvrir la boutique
+          </Link>
+        }
+      />
     );
   }
 
   if (loading) {
-    return <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-16 text-gray-500">Chargement du panier...</div>;
+    return <LoadingState message="Chargement du panier..." className="max-w-[1400px] mx-auto px-4 md:px-8" />;
   }
 
   if (error) {
-    return <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-16 text-red-600">{error}</div>;
+    return <ErrorState message={error} className="max-w-[1400px] mx-auto px-4 md:px-8" />;
   }
 
   return (
@@ -65,8 +131,7 @@ export const Cart = () => {
                 <div className="flex items-center border border-gray-200 rounded-full h-10 w-28 bg-gray-50">
                   <button 
                     onClick={() => {
-                      if (item.quantity > 1) updateQuantity(item.id, item.quantity - 1);
-                      else removeItem(item.id);
+                      handleQuantityDown(item.id, item.quantity, item.name);
                     }}
                     className="w-8 h-full flex items-center justify-center text-gray-500 hover:text-black"
                   >
@@ -86,7 +151,7 @@ export const Cart = () => {
                 </div>
 
                 <button 
-                  onClick={() => removeItem(item.id)}
+                  onClick={() => handleRemove(item.id, item.name)}
                   className="p-2 text-gray-400 hover:text-red-500 transition-colors"
                 >
                   <Trash2 className="w-5 h-5" />
@@ -122,7 +187,10 @@ export const Cart = () => {
               <span>{formatPrice(total)}</span>
             </div>
 
-            <button className="w-full h-14 bg-[#1a1a1a] text-white rounded-full font-bold flex items-center justify-center gap-2 hover:bg-[#333] transition-colors mt-4">
+            <button
+              onClick={handleCheckout}
+              className="w-full h-14 bg-[#1a1a1a] text-white rounded-full font-bold flex items-center justify-center gap-2 hover:bg-[#333] transition-colors mt-4"
+            >
               Passer à la caisse <ArrowRight className="w-5 h-5" />
             </button>
 

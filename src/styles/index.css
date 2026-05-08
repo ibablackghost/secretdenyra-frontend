@@ -2,6 +2,17 @@
 @import './tailwind.css';
 @import './theme.css';
 
+:focus-visible {
+  outline: 3px solid #8d8c5d;
+  outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  html {
+    font-size: 15px;
+  }
+}
+
 @media (prefers-reduced-motion: no-preference) {
   @keyframes nyra-fade-up {
     from {
