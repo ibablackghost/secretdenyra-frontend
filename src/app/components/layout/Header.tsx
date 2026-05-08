@@ -1,9 +1,11 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { ShoppingBag, Search, User, Globe, Heart, Menu, X } from 'lucide-react';
 import { useCartStore } from '../../store/cartStore';
 import { useAuthStore } from '../../store/authStore';
 import { useWishlistStore } from '../../store/wishlistStore';
+import { useCatalog } from '@/app/hooks/useCatalog';
+import { MediaImage } from '@/app/components/ui/MediaImage';
 import imgLogo from 'figma:asset/04c30533fe5a9a60b6e7341851231c595d46cb74.png';
 
 export const Header = () => {
@@ -13,9 +15,21 @@ export const Header = () => {
   const cartCount = cartItems.reduce((acc, item) => acc + item.quantity, 0);
   const user = useAuthStore((s) => s.user);
   const wishCount = useWishlistStore((s) => s.count);
+  const { products } = useCatalog();
 
   const [headerQ, setHeaderQ] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const searchWrapRef = useRef<HTMLDivElement | null>(null);
+
+  const suggestions = useMemo(() => {
+    const q = headerQ.trim().toLowerCase();
+    if (q.length < 2) return [];
+
+    return products
+      .filter((product) => product.name.toLowerCase().includes(q))
+      .slice(0, 6);
+  }, [headerQ, products]);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -27,9 +41,21 @@ export const Header = () => {
     setMobileMenuOpen(false);
   }, [location.pathname, location.search]);
 
+  useEffect(() => {
+    const onPointerDown = (event: MouseEvent) => {
+      if (!searchWrapRef.current) return;
+      if (!searchWrapRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    return () => document.removeEventListener('mousedown', onPointerDown);
+  }, []);
+
   const runSearch = (e?: FormEvent) => {
     e?.preventDefault();
     const q = headerQ.trim();
+    setShowSuggestions(false);
     if (q) navigate(`/shop?q=${encodeURIComponent(q)}`);
     else navigate('/shop');
   };
@@ -147,16 +173,51 @@ export const Header = () => {
       <div className="border-t border-gray-50 bg-[#fafafa]">
         <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-3">
           <form onSubmit={runSearch} className="flex gap-2 w-full">
-            <div className="relative flex-1">
+            <div className="relative flex-1" ref={searchWrapRef}>
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
               <input
                 type="search"
                 value={headerQ}
-                onChange={(e) => setHeaderQ(e.target.value)}
+                onChange={(e) => {
+                  setHeaderQ(e.target.value);
+                  setShowSuggestions(true);
+                }}
+                onFocus={() => setShowSuggestions(true)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') setShowSuggestions(false);
+                }}
                 placeholder="Rechercher un thé, une infusion, un ingrédient…"
                 className="w-full rounded-full border border-gray-200 bg-white py-3 pl-11 pr-4 font-['Mulish',sans-serif] text-sm text-[#1a1a1a] placeholder:text-gray-400 outline-none focus:border-[#a4a374] focus:ring-2 focus:ring-[#a4a374]/20"
                 aria-label="Recherche produits"
               />
+              {showSuggestions && suggestions.length > 0 && (
+                <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-50 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl">
+                  <ul className="max-h-96 overflow-auto p-2">
+                    {suggestions.map((product) => (
+                      <li key={product.id}>
+                        <Link
+                          to={`/product/${product.slug}`}
+                          className="flex items-center gap-3 rounded-xl px-3 py-2 transition-colors hover:bg-gray-50"
+                          onClick={() => {
+                            setHeaderQ(product.name);
+                            setShowSuggestions(false);
+                          }}
+                        >
+                          <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-gray-100">
+                            <MediaImage
+                              src={product.image}
+                              alt={product.name}
+                              className="h-full w-full object-cover"
+                              fallbackClassName="h-full w-full rounded-none text-[9px]"
+                            />
+                          </div>
+                          <span className="line-clamp-2 text-sm font-medium text-[#1a1a1a]">{product.name}</span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
             <button
               type="submit"
