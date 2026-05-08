@@ -18,7 +18,7 @@ function ProductCardBase({ product, wished, onToggleWishlist, onAddToCart }: Pro
 
   return (
     <div className="group flex flex-col gap-4">
-      <div className={`relative ${product.bgClass} aspect-[4/5] overflow-hidden rounded-[10px] transition-transform group-hover:scale-[1.02]`}>
+      <div className="relative aspect-[4/5] overflow-hidden rounded-[10px] bg-gray-100 transition-transform group-hover:scale-[1.02]">
         <Link to={`/product/${product.slug}`} className="absolute inset-0 flex items-center justify-center p-4">
           <div className="absolute left-4 top-4 z-[1] flex items-center gap-1 rounded-[4px] bg-white/80 px-2 py-1 backdrop-blur-sm">
             <Star className="h-3 w-3 fill-current text-black" />
