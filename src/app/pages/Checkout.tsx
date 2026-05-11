@@ -11,6 +11,7 @@ import { ErrorState, LoadingState } from '../components/ui/AsyncState';
 import { useOrderStore } from '../store/orderStore';
 import { usePurchasedProductsStore } from '../store/purchasedProductsStore';
 import { useAuthStore } from '../store/authStore';
+import { ApiError } from '../services/api/apiError';
 import { confirmCheckout, initCheckout } from '../services/api/commerceApi';
 import {
   trackCheckoutPaymentFailed,
@@ -177,32 +178,7 @@ export const Checkout = () => {
       return;
     }
 
-    try {
-      if (token) {
-        const init = await initCheckout(token, {
-          customer,
-          shippingAddress: shipping,
-          billingAddress: billingSameAsShipping ? shipping : billing,
-          billingSameAsShipping,
-          items: cartProducts.map((item) => ({
-            productId: item.id,
-            quantity: item.quantity,
-          })),
-        });
-        const checkoutId = init.checkoutId ?? init.checkout_session_id;
-        if (!checkoutId) {
-          throw new Error('Checkout backend introuvable après initialisation.');
-        }
-        const confirm = await confirmCheckout(token, checkoutId, { paymentMethod });
-        await clearCart();
-        await Promise.all([hydrateOrders(), hydratePurchasedProducts()]);
-        trackCheckoutStepComplete(3, STEP_LABELS[3]);
-        success(`Paiement validé. Commande ${confirm.order?.id ?? confirm.orderId ?? checkoutId} créée.`);
-        navigate('/');
-        return;
-      }
-
-      // Fallback hors session connectée.
+    const finalizeOrderLocally = async () => {
       const orderId = addOrder({
         status: 'paid',
         paymentMethod,
@@ -224,6 +200,47 @@ export const Checkout = () => {
       trackCheckoutStepComplete(3, STEP_LABELS[3]);
       success(`Paiement validé. Commande ${orderId} créée.`);
       navigate('/');
+    };
+
+    try {
+      if (token) {
+        try {
+          const init = await initCheckout(token, {
+            customer,
+            shippingAddress: shipping,
+            billingAddress: billingSameAsShipping ? shipping : billing,
+            billingSameAsShipping,
+            items: cartProducts.map((item) => ({
+              productId: item.id,
+              quantity: item.quantity,
+            })),
+          });
+          const checkoutId = init.checkoutId ?? init.checkout_session_id;
+          if (!checkoutId) {
+            throw new Error('Checkout backend introuvable après initialisation.');
+          }
+          const confirm = await confirmCheckout(token, checkoutId, { paymentMethod });
+          await clearCart();
+          await Promise.all([hydrateOrders(), hydratePurchasedProducts()]);
+          trackCheckoutStepComplete(3, STEP_LABELS[3]);
+          success(`Paiement validé. Commande ${confirm.order?.id ?? confirm.orderId ?? checkoutId} créée.`);
+          navigate('/');
+          return;
+        } catch (apiErr) {
+          const missingRoute =
+            apiErr instanceof ApiError && (apiErr.status === 404 || apiErr.status === 405);
+          if (missingRoute) {
+            info(
+              'Le paiement en ligne n’est pas encore disponible sur le serveur : votre commande est enregistrée sur cet appareil.'
+            );
+            await finalizeOrderLocally();
+            return;
+          }
+          throw apiErr;
+        }
+      }
+
+      await finalizeOrderLocally();
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Impossible de finaliser la commande.';
       setFormError(msg);
