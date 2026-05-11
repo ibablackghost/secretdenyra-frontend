@@ -1,9 +1,11 @@
 import image_Gemini_Generated_Image_4hyvy04hyvy04hyv_1 from '@/imports/Gemini_Generated_Image_4hyvy04hyvy04hyv_1.png';
 import imgLogo from 'figma:asset/04c30533fe5a9a60b6e7341851231c595d46cb74.png';
+import { useMemo } from 'react';
 import { Link } from 'react-router';
 import { ArrowRight } from 'lucide-react';
 import { useCartStore } from '../store/cartStore';
 import { useWishlistStore } from '../store/wishlistStore';
+import { useViewedProductsStore } from '../store/viewedProductsStore';
 import { UIProduct } from '../lib/catalog';
 import { useCatalog } from '../lib/useCatalog';
 import { ErrorState, LoadingState } from '../components/ui/AsyncState';
@@ -11,6 +13,9 @@ import { ProductCard } from '../features/catalog/components/ProductCard';
 import { useToast } from '../hooks/useToast';
 import { useSeo } from '../hooks/useSeo';
 import { trackAddToCart } from '../services/analytics/tracking';
+import { getDefaultVariant, unitPriceForLine } from '../features/catalog/productUtils';
+
+const HOME_SECTION_PRODUCT_LIMIT = 4;
 
 const ProductGrid = ({ title, products }: { title: string; products: UIProduct[] }) => {
   const { addItem } = useCartStore();
@@ -19,8 +24,9 @@ const ProductGrid = ({ title, products }: { title: string; products: UIProduct[]
   const { success, info } = useToast();
 
   const handleAddToCart = (product: UIProduct) => {
-    addItem(product.id);
-    trackAddToCart(product, 1);
+    const def = getDefaultVariant(product);
+    void addItem(product.id, { variantId: def?.id, quantity: 1 });
+    trackAddToCart({ ...product, price: unitPriceForLine(product, def?.id) }, 1);
     success(`Ajouté au panier: ${product.name}`);
   };
 
@@ -55,6 +61,28 @@ const ProductGrid = ({ title, products }: { title: string; products: UIProduct[]
 
 export const Home = () => {
   const { products, tags, loading, error } = useCatalog();
+  const viewedIds = useViewedProductsStore((s) => s.ids);
+
+  const { homeFavorites, homeBestsellers, homePopular, homeViewed } = useMemo(() => {
+    const lim = HOME_SECTION_PRODUCT_LIMIT;
+    if (!products.length) {
+      return {
+        homeFavorites: [] as UIProduct[],
+        homeBestsellers: [] as UIProduct[],
+        homePopular: [] as UIProduct[],
+        homeViewed: [] as UIProduct[],
+      };
+    }
+    const homeFavorites = products.slice(0, lim);
+    const homeBestsellers = [...products].sort((a, b) => b.rating - a.rating).slice(0, lim);
+    const homePopular = [...products].sort((a, b) => (b.reviews ?? 0) - (a.reviews ?? 0)).slice(0, lim);
+    const homeViewed = viewedIds
+      .map((id) => products.find((p) => p.id === id || p.slug === id))
+      .filter((p): p is UIProduct => p != null)
+      .slice(0, lim);
+    return { homeFavorites, homeBestsellers, homePopular, homeViewed };
+  }, [products, viewedIds]);
+
   useSeo({
     title: 'Accueil',
     description: 'Thés et infusions bio premium pour votre bien-être.',
@@ -101,7 +129,7 @@ export const Home = () => {
           <ErrorState message={error} className="py-4" />
         </section>
       ) : (
-        <ProductGrid title="Les favoris de nos clients" products={products} />
+        <ProductGrid title="Les favoris de nos clients" products={homeFavorites} />
       )}
 
       {/* Tea Family Tags */}
@@ -131,7 +159,7 @@ export const Home = () => {
       </section>
 
       {/* Best Sellers */}
-      {!loading && !error && <ProductGrid title="Nos meilleures ventes" products={products} />}
+      {!loading && !error && <ProductGrid title="Nos meilleures ventes" products={homeBestsellers} />}
       
       {/* Promo Block */}
       <section className="max-w-[1400px] mx-auto px-4 md:px-8 py-20">
@@ -166,10 +194,12 @@ export const Home = () => {
       </section>
 
       {/* Popular Products */}
-      {!loading && !error && <ProductGrid title="Produits populaires" products={products} />}
+      {!loading && !error && <ProductGrid title="Produits populaires" products={homePopular} />}
 
       {/* Recently Viewed */}
-      {!loading && !error && <ProductGrid title="Produits auquel vous avez cliqué" products={products} />}
+      {!loading && !error && homeViewed.length > 0 && (
+        <ProductGrid title="Produits auquel vous avez cliqué" products={homeViewed} />
+      )}
     </div>
   );
 };

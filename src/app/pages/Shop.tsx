@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useSearchParams, Link, useParams } from 'react-router';
 import { SlidersHorizontal, Search, RotateCcw, X } from 'lucide-react';
 import { useCartStore } from '../store/cartStore';
@@ -11,6 +11,34 @@ import { useToast } from '../hooks/useToast';
 import type { UIProduct } from '../features/catalog/types';
 import { useSeo } from '../hooks/useSeo';
 import { trackAddToCart } from '../services/analytics/tracking';
+import { getDefaultVariant, unitPriceForLine } from '../features/catalog/productUtils';
+
+const SHOP_PRODUCTS_PER_PAGE = 9;
+
+type PaginationToken = number | 'ellipsis';
+
+function buildPaginationItems(current: number, total: number): PaginationToken[] {
+  if (total <= 1) return [1];
+  if (total <= 7) {
+    return Array.from({ length: total }, (_, i) => i + 1);
+  }
+  const delta = 1;
+  const set = new Set<number>();
+  set.add(1);
+  set.add(total);
+  for (let p = current - delta; p <= current + delta; p++) {
+    if (p >= 1 && p <= total) set.add(p);
+  }
+  const sorted = [...set].sort((a, b) => a - b);
+  const result: PaginationToken[] = [];
+  let prev = 0;
+  for (const n of sorted) {
+    if (prev && n - prev > 1) result.push('ellipsis');
+    result.push(n);
+    prev = n;
+  }
+  return result;
+}
 
 export const Shop = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -19,11 +47,16 @@ export const Shop = () => {
   const teaFamilyTagFilter = searchParams.get('teaTag') ?? '';
   const urlQ = searchParams.get('q') ?? '';
   const sortBy = searchParams.get('sort') ?? 'popular';
-  const priceMax = Number(searchParams.get('priceMax') ?? '50000');
-  const page = Math.max(1, Number(searchParams.get('page') ?? '1'));
-  const pageSize = Math.max(1, Number(searchParams.get('pageSize') ?? '12'));
+  const rawPriceMax = Number(searchParams.get('priceMax') ?? '50000');
+  const priceMax = Number.isFinite(rawPriceMax) ? Math.min(50000, Math.max(0, rawPriceMax)) : 50000;
+  const rawPage = Number(searchParams.get('page') ?? '1');
+  const page = Number.isFinite(rawPage) && rawPage >= 1 ? Math.floor(rawPage) : 1;
+  const rawPageSize = Number(searchParams.get('pageSize') ?? String(SHOP_PRODUCTS_PER_PAGE));
+  const pageSize =
+    Number.isFinite(rawPageSize) && rawPageSize >= 1 ? Math.min(48, Math.floor(rawPageSize)) : SHOP_PRODUCTS_PER_PAGE;
 
   const [inputValue, setInputValue] = useState(urlQ);
+  const skipPageScrollRef = useRef(true);
 
   const { addItem } = useCartStore();
   const toggleWishlist = useWishlistStore((s) => s.toggle);
@@ -49,6 +82,8 @@ export const Shop = () => {
       setSearchParams(
         (prev) => {
           const next = inputValue.trim();
+          const prevQ = (prev.get('q') ?? '').trim();
+          if (next === prevQ) return prev;
           const n = new URLSearchParams(prev);
           if (next) n.set('q', next);
           else n.delete('q');
@@ -69,17 +104,15 @@ export const Shop = () => {
     }
 
     if (teaFamilyTagFilter) {
-      result = result.filter((p) =>
-        p.tags.some((tag) => tag.slug === teaFamilyTagFilter)
-      );
+      result = result.filter((p) => p.tags.some((tag) => tag.slug === teaFamilyTagFilter));
     }
 
     if (inputValue.trim()) {
       result = result.filter((p) => productMatchesQuery(p, inputValue));
     }
-    
+
     result = result.filter((p) => p.price >= 0 && p.price <= priceMax);
-    
+
     if (sortBy === 'price-low') {
       result.sort((a, b) => a.price - b.price);
     } else if (sortBy === 'price-high') {
@@ -87,7 +120,7 @@ export const Shop = () => {
     } else if (sortBy === 'rating') {
       result.sort((a, b) => b.rating - a.rating);
     }
-    
+
     return result;
   }, [categoryFilter, teaFamilyTagFilter, inputValue, priceMax, sortBy, products]);
 
@@ -95,6 +128,28 @@ export const Shop = () => {
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
   const safePage = Math.min(page, totalPages);
   const paginatedProducts = filteredProducts.slice((safePage - 1) * pageSize, safePage * pageSize);
+
+  const paginationItems = useMemo(() => buildPaginationItems(safePage, totalPages), [safePage, totalPages]);
+
+  useEffect(() => {
+    if (safePage === page) return;
+    setSearchParams(
+      (prev) => {
+        const n = new URLSearchParams(prev);
+        n.set('page', String(safePage));
+        return n;
+      },
+      { replace: true }
+    );
+  }, [page, safePage, setSearchParams]);
+
+  useEffect(() => {
+    if (skipPageScrollRef.current) {
+      skipPageScrollRef.current = false;
+      return;
+    }
+    document.getElementById('shop-catalog')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [safePage]);
 
   const updateQuery = (entries: Record<string, string | null>) => {
     setSearchParams((prev) => {
@@ -108,8 +163,9 @@ export const Shop = () => {
   };
 
   const handleAddToCart = (product: UIProduct) => {
-    addItem(product.id);
-    trackAddToCart(product, 1);
+    const def = getDefaultVariant(product);
+    void addItem(product.id, { variantId: def?.id, quantity: 1 });
+    trackAddToCart({ ...product, price: unitPriceForLine(product, def?.id) }, 1);
     success(`Ajouté au panier: ${product.name}`);
   };
 
@@ -120,14 +176,14 @@ export const Shop = () => {
 
   return (
     <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-12 flex flex-col md:flex-row gap-12">
-      {/* Sidebar Filters */}
       <aside className="w-full md:w-[280px] shrink-0 space-y-8">
         <div className="flex items-center justify-between pb-4 border-b border-gray-100">
           <div className="flex items-center gap-2 text-[#1a1a1a] font-bold text-xl font-['Mulish',sans-serif]">
             <SlidersHorizontal className="w-5 h-5" />
             Filtres
           </div>
-          <button 
+          <button
+            type="button"
             onClick={() => {
               setInputValue('');
               updateQuery({
@@ -136,7 +192,7 @@ export const Shop = () => {
                 q: null,
                 sort: 'popular',
                 page: '1',
-                pageSize: String(pageSize),
+                pageSize: String(SHOP_PRODUCTS_PER_PAGE),
                 priceMax: '50000',
               });
             }}
@@ -145,15 +201,14 @@ export const Shop = () => {
             <RotateCcw className="w-4 h-4" />
           </button>
         </div>
-        
-        {/* Prix */}
+
         <div className="space-y-4">
           <h3 className="font-bold text-lg text-[#1a1a1a] font-['Mulish',sans-serif]">Prix (XOF)</h3>
           <div className="pt-2">
-            <input 
-              type="range" 
-              min="0" 
-              max="50000" 
+            <input
+              type="range"
+              min="0"
+              max="50000"
               step="1000"
               value={priceMax}
               onChange={(e) => updateQuery({ priceMax: String(Number(e.target.value)), page: '1' })}
@@ -166,42 +221,74 @@ export const Shop = () => {
           </div>
         </div>
 
-        {/* Effets (Adaptation des couleurs) */}
         <div className="space-y-4">
           <h3 className="font-bold text-lg text-[#1a1a1a] font-['Mulish',sans-serif]">Effets recherchés</h3>
           <div className="flex items-center gap-3">
-            <button className="w-10 h-10 rounded-full bg-[#f4e79b] border-2 border-transparent focus:border-black hover:scale-110 transition-transform shadow-sm flex items-center justify-center group relative">
-              <span className="absolute -top-8 bg-black text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">Énergie</span>
+            <button
+              type="button"
+              className="w-10 h-10 rounded-full bg-[#f4e79b] border-2 border-transparent focus:border-black hover:scale-110 transition-transform shadow-sm flex items-center justify-center group relative"
+            >
+              <span className="absolute -top-8 bg-black text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                Énergie
+              </span>
             </button>
-            <button className="w-10 h-10 rounded-full bg-[#8bb587] border-2 border-transparent focus:border-black hover:scale-110 transition-transform shadow-sm flex items-center justify-center group relative">
-              <span className="absolute -top-8 bg-black text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">Sommeil</span>
+            <button
+              type="button"
+              className="w-10 h-10 rounded-full bg-[#8bb587] border-2 border-transparent focus:border-black hover:scale-110 transition-transform shadow-sm flex items-center justify-center group relative"
+            >
+              <span className="absolute -top-8 bg-black text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                Sommeil
+              </span>
             </button>
-            <button className="w-10 h-10 rounded-full bg-[#527d5e] border-2 border-transparent focus:border-black hover:scale-110 transition-transform shadow-sm flex items-center justify-center group relative">
-              <span className="absolute -top-8 bg-black text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">Digestion</span>
+            <button
+              type="button"
+              className="w-10 h-10 rounded-full bg-[#527d5e] border-2 border-transparent focus:border-black hover:scale-110 transition-transform shadow-sm flex items-center justify-center group relative"
+            >
+              <span className="absolute -top-8 bg-black text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                Digestion
+              </span>
             </button>
-            <button className="w-10 h-10 rounded-full bg-[#272824] border-2 border-transparent focus:border-black hover:scale-110 transition-transform shadow-sm flex items-center justify-center group relative">
-              <span className="absolute -top-8 bg-black text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">Détox</span>
+            <button
+              type="button"
+              className="w-10 h-10 rounded-full bg-[#272824] border-2 border-transparent focus:border-black hover:scale-110 transition-transform shadow-sm flex items-center justify-center group relative"
+            >
+              <span className="absolute -top-8 bg-black text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                Détox
+              </span>
             </button>
           </div>
         </div>
 
-        {/* Formats (Adaptation de Size) */}
         <div className="space-y-4">
           <h3 className="font-bold text-lg text-[#1a1a1a] font-['Mulish',sans-serif]">Format</h3>
           <div className="flex flex-wrap gap-2">
-            <button className="h-10 px-4 flex items-center justify-center border border-gray-200 rounded-[8px] text-sm font-medium text-gray-600 hover:border-black focus:border-black focus:text-black transition-colors">Vrac 50g</button>
-            <button className="h-10 px-4 flex items-center justify-center border-2 border-black rounded-[8px] text-sm font-bold text-black transition-colors">Vrac 100g</button>
-            <button className="h-10 px-4 flex items-center justify-center border border-gray-200 rounded-[8px] text-sm font-medium text-gray-600 hover:border-black focus:border-black focus:text-black transition-colors">Boîte 20s</button>
+            <button
+              type="button"
+              className="h-10 px-4 flex items-center justify-center border border-gray-200 rounded-[8px] text-sm font-medium text-gray-600 hover:border-black focus:border-black focus:text-black transition-colors"
+            >
+              Vrac 50g
+            </button>
+            <button
+              type="button"
+              className="h-10 px-4 flex items-center justify-center border-2 border-black rounded-[8px] text-sm font-bold text-black transition-colors"
+            >
+              Vrac 100g
+            </button>
+            <button
+              type="button"
+              className="h-10 px-4 flex items-center justify-center border border-gray-200 rounded-[8px] text-sm font-medium text-gray-600 hover:border-black focus:border-black focus:text-black transition-colors"
+            >
+              Boîte 20s
+            </button>
           </div>
         </div>
 
-        {/* Categories */}
         <div className="space-y-4">
           <h3 className="font-bold text-lg text-[#1a1a1a] font-['Mulish',sans-serif]">Catégories</h3>
           <div className="flex flex-col gap-3">
             <label className="flex items-center gap-3 cursor-pointer group">
-              <input 
-                type="radio" 
+              <input
+                type="radio"
                 name="category"
                 checked={!categoryFilter}
                 onChange={() => {
@@ -213,10 +300,10 @@ export const Shop = () => {
                 Tous nos thés
               </span>
             </label>
-            {categories.map(cat => (
+            {categories.map((cat) => (
               <label key={cat.slug} className="flex items-center gap-3 cursor-pointer group">
-                <input 
-                  type="radio" 
+                <input
+                  type="radio"
                   name="category"
                   checked={categoryFilter === cat.slug}
                   onChange={() => {
@@ -224,7 +311,9 @@ export const Shop = () => {
                   }}
                   className="w-4 h-4 text-black border-gray-300 focus:ring-black cursor-pointer accent-black"
                 />
-                <span className={`text-sm ${categoryFilter === cat.slug ? 'font-bold text-black' : 'text-gray-600 group-hover:text-black'}`}>
+                <span
+                  className={`text-sm ${categoryFilter === cat.slug ? 'font-bold text-black' : 'text-gray-600 group-hover:text-black'}`}
+                >
                   {cat.name}
                 </span>
               </label>
@@ -232,7 +321,6 @@ export const Shop = () => {
           </div>
         </div>
 
-        {/* Tags (Famille de thé) */}
         {tags.length > 0 && (
           <div className="space-y-4">
             <h3 className="font-bold text-lg text-[#1a1a1a] font-['Mulish',sans-serif]">Famille de thé (tags)</h3>
@@ -262,7 +350,9 @@ export const Shop = () => {
                     }}
                     className="w-4 h-4 text-black border-gray-300 focus:ring-black cursor-pointer accent-black"
                   />
-                  <span className={`text-sm ${teaFamilyTagFilter === tag.slug ? 'font-bold text-black' : 'text-gray-600 group-hover:text-black'}`}>
+                  <span
+                    className={`text-sm ${teaFamilyTagFilter === tag.slug ? 'font-bold text-black' : 'text-gray-600 group-hover:text-black'}`}
+                  >
                     {tag.name}
                   </span>
                 </label>
@@ -272,11 +362,13 @@ export const Shop = () => {
         )}
       </aside>
 
-      {/* Main Content */}
-      <div className="flex-1">
+      <div id="shop-catalog" className="flex-1 scroll-mt-24">
         <div className="mb-8">
           <div className="mb-6 rounded-[12px] border border-gray-100 bg-white p-4 shadow-sm">
-            <label htmlFor="shop-search" className="mb-2 block text-xs font-semibold uppercase tracking-wider text-gray-500 font-['Mulish',sans-serif]">
+            <label
+              htmlFor="shop-search"
+              className="mb-2 block text-xs font-semibold uppercase tracking-wider text-gray-500 font-['Mulish',sans-serif]"
+            >
               Recherche dans cette page
             </label>
             <div className="flex gap-2">
@@ -309,24 +401,28 @@ export const Shop = () => {
               </p>
             ) : (
               <p className="mt-2 text-xs text-gray-400 font-['Mulish',sans-serif]">
-                La recherche du bandeau du haut ouvre aussi cette page avec le même filtre (<code className="rounded bg-gray-100 px-1">?q=</code>
+                La recherche du bandeau du haut ouvre aussi cette page avec le même filtre (
+                <code className="rounded bg-gray-100 px-1">?q=</code>
                 ).
               </p>
             )}
           </div>
 
-          {/* Breadcrumbs */}
           <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
-            <Link to="/" className="hover:text-black transition-colors">Home</Link>
+            <Link to="/" className="hover:text-black transition-colors">
+              Home
+            </Link>
             <span className="text-gray-300">&gt;</span>
-            <span className="text-black font-medium">{categoryFilter ? categories.find(c => c.slug === categoryFilter)?.name : 'Nos thés bio'}</span>
+            <span className="text-black font-medium">
+              {categoryFilter ? categories.find((c) => c.slug === categoryFilter)?.name : 'Nos thés bio'}
+            </span>
           </div>
 
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <h1 className="font-['Mulish',sans-serif] text-3xl md:text-4xl font-bold text-[#1a1a1a]">
-              {categoryFilter ? categories.find(c => c.slug === categoryFilter)?.name : 'Nos thés bio'}
+              {categoryFilter ? categories.find((c) => c.slug === categoryFilter)?.name : 'Nos thés bio'}
             </h1>
-            
+
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-gray-500">Sort by</span>
               <select
@@ -366,6 +462,7 @@ export const Shop = () => {
             className="py-20"
             action={
               <button
+                type="button"
                 onClick={() => {
                   setInputValue('');
                   updateQuery({
@@ -374,7 +471,7 @@ export const Shop = () => {
                     q: null,
                     sort: 'popular',
                     page: '1',
-                    pageSize: String(pageSize),
+                    pageSize: String(SHOP_PRODUCTS_PER_PAGE),
                     priceMax: '50000',
                   });
                 }}
@@ -386,27 +483,62 @@ export const Shop = () => {
           />
         )}
 
-        {/* Pagination */}
-        {totalItems > 0 && (
-          <div className="flex justify-center items-center gap-2 mt-12">
-            <button
-              className="px-4 h-10 flex items-center justify-center rounded-[8px] hover:bg-gray-50 text-gray-600 font-medium transition-colors disabled:opacity-40"
-              onClick={() => updateQuery({ page: String(safePage - 1) })}
-              disabled={safePage <= 1}
-            >
-              &lt; Prev
-            </button>
-            <span className="text-sm text-gray-600">
-              Page {safePage} / {totalPages}
-            </span>
-            <button
-              className="px-4 h-10 flex items-center justify-center rounded-[8px] hover:bg-gray-50 text-gray-600 font-medium transition-colors disabled:opacity-40"
-              onClick={() => updateQuery({ page: String(safePage + 1) })}
-              disabled={safePage >= totalPages}
-            >
-              Next &gt;
-            </button>
-          </div>
+        {totalItems > 0 && totalPages > 1 && (
+          <nav
+            className="mt-12 flex flex-col items-center gap-3 font-['Mulish',sans-serif]"
+            aria-label="Pagination du catalogue"
+          >
+            <div className="flex flex-wrap items-center justify-center gap-1 sm:gap-2">
+              <button
+                type="button"
+                aria-label="Page précédente"
+                onClick={() => updateQuery({ page: String(safePage - 1) })}
+                disabled={safePage <= 1}
+                className="rounded-md px-2 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-[#1a1a1a] active:scale-95 disabled:pointer-events-none disabled:opacity-35 disabled:hover:bg-transparent"
+              >
+                &lt; Précédent
+              </button>
+
+              {paginationItems.map((item, i) =>
+                item === 'ellipsis' ? (
+                  <span key={`ellipsis-${i}`} className="select-none px-1.5 text-base text-gray-400" aria-hidden>
+                    …
+                  </span>
+                ) : item === safePage ? (
+                  <span
+                    key={`page-${item}`}
+                    aria-current="page"
+                    className="flex min-h-9 min-w-9 items-center justify-center rounded-md bg-[#1a1a1a] px-2 text-sm font-semibold text-white"
+                  >
+                    {item}
+                  </span>
+                ) : (
+                  <button
+                    key={`page-${item}`}
+                    type="button"
+                    aria-label={`Page ${item}`}
+                    onClick={() => updateQuery({ page: String(item) })}
+                    className="flex min-h-9 min-w-9 items-center justify-center rounded-md px-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 active:scale-95"
+                  >
+                    {item}
+                  </button>
+                )
+              )}
+
+              <button
+                type="button"
+                aria-label="Page suivante"
+                onClick={() => updateQuery({ page: String(safePage + 1) })}
+                disabled={safePage >= totalPages}
+                className="rounded-md px-2 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-[#1a1a1a] active:scale-95 disabled:pointer-events-none disabled:opacity-35 disabled:hover:bg-transparent"
+              >
+                Suivant &gt;
+              </button>
+            </div>
+            <p className="text-center text-xs text-gray-500 tabular-nums">
+              Produits {(safePage - 1) * pageSize + 1}–{Math.min(safePage * pageSize, totalItems)} sur {totalItems}
+            </p>
+          </nav>
         )}
       </div>
     </div>

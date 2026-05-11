@@ -17,6 +17,19 @@ export const Header = () => {
   const wishCount = useWishlistStore((s) => s.count);
   const { products } = useCatalog();
 
+  const { accountLabel, accountInitials } = useMemo(() => {
+    if (!user) return { accountLabel: null as string | null, accountInitials: null as string | null };
+    const first = (user.firstName || '').trim();
+    const last = (user.lastName || '').trim();
+    let initials = `${first.charAt(0)}${last.charAt(0)}`.toUpperCase();
+    if (!initials) {
+      const local = (user.email || '').split('@')[0] || '';
+      initials = local.slice(0, 2).toUpperCase() || 'NY';
+    }
+    const label = first || (user.email || '').split('@')[0] || 'Mon compte';
+    return { accountLabel: label, accountInitials: initials };
+  }, [user]);
+
   const [headerQ, setHeaderQ] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -63,7 +76,14 @@ export const Header = () => {
   return (
     <header className="sticky top-0 z-50 w-full bg-white border-b border-gray-100 shadow-sm">
       <div className="bg-[#333] text-white text-xs font-medium py-2 px-4 flex justify-between items-center">
-        <div className="hidden md:flex gap-4" />
+        <div className="hidden md:flex gap-4 items-center text-white/90">
+          {user ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-0.5 text-[11px] font-medium">
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400" aria-hidden />
+              Connecté
+            </span>
+          ) : null}
+        </div>
         <div className="text-center w-full md:w-auto">
           Livraison gratuite pour les commandes de plus de 45000 XOF
         </div>
@@ -109,10 +129,25 @@ export const Header = () => {
         <div className="flex items-center gap-2 sm:gap-4 text-gray-700 shrink-0">
           <Link
             to={user ? '/account' : '/login'}
-            className="flex p-2 hover:bg-gray-50 rounded-full transition-colors"
+            className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2 hover:bg-gray-50 transition-colors"
             title={user ? 'Mon compte' : 'Connexion'}
+            aria-label={user ? `Mon compte (${accountLabel})` : 'Connexion'}
           >
-            <User className="w-5 h-5" />
+            {user && accountInitials ? (
+              <>
+                <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#a4a374] text-[11px] font-bold uppercase text-white shadow-sm ring-2 ring-white">
+                  {accountInitials}
+                  <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-emerald-500" aria-hidden />
+                </span>
+                <span className="hidden max-w-[7rem] truncate text-sm font-medium text-[#1a1a1a] sm:inline md:max-w-[10rem]">
+                  {accountLabel}
+                </span>
+              </>
+            ) : (
+              <span className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white">
+                <User className="w-5 h-5 text-gray-600" />
+              </span>
+            )}
           </Link>
           <Link to="/wishlist" className="relative flex p-2 hover:bg-gray-50 rounded-full transition-colors">
             <Heart className="w-5 h-5" />
@@ -166,6 +201,27 @@ export const Header = () => {
             <Link to="/shop" className="px-3 py-2 rounded-md hover:bg-gray-50 transition-colors uppercase tracking-wider">
               VOTRE MARQUE
             </Link>
+            {user ? (
+              <Link
+                to="/account"
+                className="mt-2 flex items-center gap-3 border-t border-gray-100 px-3 py-3 text-sm font-medium text-[#1a1a1a] hover:bg-gray-50 rounded-md"
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#a4a374] text-xs font-bold uppercase text-white">
+                  {accountInitials}
+                </span>
+                <span className="flex flex-col items-start gap-0.5">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Connecté</span>
+                  <span className="line-clamp-1">Mon compte · {accountLabel}</span>
+                </span>
+              </Link>
+            ) : (
+              <Link
+                to="/login"
+                className="mt-2 border-t border-gray-100 px-3 py-3 text-sm font-medium text-[#a4a374] hover:underline"
+              >
+                Se connecter
+              </Link>
+            )}
           </nav>
         </div>
       )}

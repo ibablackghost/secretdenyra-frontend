@@ -1,0 +1,2 @@
+# SPA (React Router) : toute URL doit servir index.html pour que le client gère /cart, /shop, etc.
+/*    /index.html   200
