@@ -12,6 +12,10 @@ export function productMatchesQuery(
     id: string;
     name: string;
     ingredients: string;
+    shortDescription?: string | null;
+    description?: string | null;
+    botanicalName?: string | null;
+    origin?: string | null;
     category: string | { slug: string; name: string };
     tags?: Array<{ slug: string; name: string }>;
   },
@@ -27,7 +31,7 @@ export function productMatchesQuery(
     .map((tag) => `${tag.name} ${tag.slug}`)
     .join(' ');
   const haystack = normalizeForSearch(
-    `${product.name} ${product.ingredients} ${categoryText} ${tagsText} ${product.id}`
+    `${product.name} ${product.ingredients} ${product.shortDescription ?? ''} ${product.description ?? ''} ${product.botanicalName ?? ''} ${product.origin ?? ''} ${categoryText} ${tagsText} ${product.id}`
   );
   return haystack.includes(q);
 }

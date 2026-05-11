@@ -6,16 +6,21 @@ import { getStoredAuthToken } from '../services/api/session';
 export interface CartItem {
   productId: string;
   quantity: number;
+  variantId?: string;
   id?: string;
   itemId?: string;
+}
+
+function lineKey(productId: string, variantId?: string) {
+  return `${productId}::${variantId ?? ''}`;
 }
 
 interface CartStore {
   items: CartItem[];
   hydrateFromServer: () => Promise<void>;
-  addItem: (productId: string) => Promise<void>;
-  removeItem: (productId: string) => Promise<void>;
-  updateQuantity: (productId: string, quantity: number) => Promise<void>;
+  addItem: (productId: string, options?: { variantId?: string; quantity?: number }) => Promise<void>;
+  removeItem: (productId: string, variantId?: string) => Promise<void>;
+  updateQuantity: (productId: string, quantity: number, variantId?: string) => Promise<void>;
   clearCart: () => Promise<void>;
 }
 
@@ -32,6 +37,7 @@ export const useCartStore = create<CartStore>()(
             items: data.items.map((item) => ({
               productId: item.productId,
               quantity: item.quantity,
+              variantId: item.variantId,
               id: item.id ?? item.itemId,
               itemId: item.itemId ?? item.id,
             })),
@@ -40,33 +46,41 @@ export const useCartStore = create<CartStore>()(
           // Keep local fallback if backend unavailable.
         }
       },
-      addItem: async (productId) => {
+      addItem: async (productId, options) => {
+        const variantId = options?.variantId;
+        const qty = Math.max(1, options?.quantity ?? 1);
         set((state) => {
-          const existing = state.items.find((item) => item.productId === productId);
+          const existing = state.items.find(
+            (item) => item.productId === productId && (item.variantId ?? '') === (variantId ?? '')
+          );
           if (existing) {
             return {
               items: state.items.map((item) =>
-                item.productId === productId
-                  ? { ...item, quantity: item.quantity + 1 }
+                lineKey(item.productId, item.variantId) === lineKey(productId, variantId)
+                  ? { ...item, quantity: item.quantity + qty }
                   : item
               ),
             };
           }
-          return { items: [...state.items, { productId, quantity: 1 }] };
+          return { items: [...state.items, { productId, quantity: qty, variantId }] };
         });
         const token = getStoredAuthToken();
         if (!token) return;
         try {
-          await addCartItem(token, { productId, quantity: 1 });
+          await addCartItem(token, { productId, quantity: qty, variantId });
           await get().hydrateFromServer();
         } catch {
           // Ignore sync errors to keep UX responsive.
         }
       },
-      removeItem: async (productId) => {
-        const before = get().items.find((item) => item.productId === productId);
+      removeItem: async (productId, variantId) => {
+        const before = get().items.find(
+          (item) => item.productId === productId && (item.variantId ?? '') === (variantId ?? '')
+        );
         set((state) => ({
-          items: state.items.filter((item) => item.productId !== productId),
+          items: state.items.filter(
+            (item) => !(item.productId === productId && (item.variantId ?? '') === (variantId ?? ''))
+          ),
         }));
         const token = getStoredAuthToken();
         const lineId = before?.id ?? before?.itemId;
@@ -76,14 +90,16 @@ export const useCartStore = create<CartStore>()(
           await get().hydrateFromServer();
         } catch {}
       },
-      updateQuantity: async (productId, quantity) => {
+      updateQuantity: async (productId, quantity, variantId) => {
         set((state) => ({
           items: state.items.map((item) =>
-            item.productId === productId ? { ...item, quantity } : item
+            lineKey(item.productId, item.variantId) === lineKey(productId, variantId) ? { ...item, quantity } : item
           ),
         }));
         const token = getStoredAuthToken();
-        const current = get().items.find((item) => item.productId === productId);
+        const current = get().items.find(
+          (item) => item.productId === productId && (item.variantId ?? '') === (variantId ?? '')
+        );
         const lineId = current?.id ?? current?.itemId;
         if (!token || !lineId) return;
         try {

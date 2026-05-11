@@ -13,42 +13,56 @@ type ProductCardProps = {
 };
 
 function ProductCardBase({ product, wished, onToggleWishlist, onAddToCart }: ProductCardProps) {
+  const hasVariants = (product.variants?.length ?? 0) > 0;
   const hasPromo = Boolean(product.compareAtPrice && product.compareAtPrice > product.price);
-  const isOutOfStock = product.inStock === false || (typeof product.stockQty === 'number' && product.stockQty <= 0);
+  const anyVariantBuyable = hasVariants
+    ? product.variants.some((v) => v.inStock !== false && (v.stockQty === undefined || (v.stockQty ?? 0) > 0))
+    : true;
+  const isOutOfStock = !anyVariantBuyable;
 
   return (
     <div className="group flex flex-col gap-4">
       <div className="relative aspect-[4/5] overflow-hidden rounded-[10px] bg-gray-100 transition-transform group-hover:scale-[1.02]">
-        <Link to={`/product/${product.slug}`} className="absolute inset-0 flex items-center justify-center p-4">
-          <div className="absolute left-4 top-4 z-[1] flex items-center gap-1 rounded-[4px] bg-white/80 px-2 py-1 backdrop-blur-sm">
-            <Star className="h-3 w-3 fill-current text-black" />
-            <span className="text-xs font-bold">{product.rating}</span>
-            <span className="text-xs text-gray-500">({product.reviews})</span>
+        <Link to={`/product/${product.slug}`} className="absolute inset-0 flex flex-col items-stretch justify-between p-3">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div className="flex max-w-[70%] flex-wrap items-center gap-1">
+              <span className="rounded bg-white/90 px-2 py-0.5 text-[10px] font-semibold text-gray-700 backdrop-blur-sm">
+                {product.category.name}
+              </span>
+              {product.tags.slice(0, 2).map((tag) => (
+                <span key={tag.slug} className="rounded-full bg-black/5 px-2 py-0.5 text-[10px] font-medium text-gray-600">
+                  {tag.name}
+                </span>
+              ))}
+            </div>
+            <div className="flex shrink-0 items-center gap-1 rounded-[4px] bg-white/80 px-2 py-1 backdrop-blur-sm">
+              <Star className="h-3 w-3 fill-current text-black" />
+              <span className="text-xs font-bold">{product.rating}</span>
+              <span className="text-xs text-gray-500">({product.reviews})</span>
+            </div>
           </div>
-          {hasPromo ? (
-            <span className="absolute left-4 top-14 z-[1] rounded-full bg-[#c45c5c] px-2 py-1 text-[10px] font-bold text-white">
-              Promo
-            </span>
-          ) : null}
-          {isOutOfStock ? (
-            <span className="absolute left-4 bottom-4 z-[1] rounded-full bg-black/80 px-2 py-1 text-[10px] font-semibold text-white">
-              Rupture
-            </span>
-          ) : null}
-          <MediaImage
-            src={product.image}
-            alt={product.name}
-            className="relative z-0 h-auto w-[80%] object-contain drop-shadow-md"
-            fallbackClassName="relative z-0 h-[70%] w-[80%]"
-          />
+          <div className="flex flex-1 flex-col items-center justify-center px-2 pb-10 pt-2">
+            {hasPromo ? (
+              <span className="mb-2 self-start rounded-full bg-[#c45c5c] px-2 py-1 text-[10px] font-bold text-white">Promo</span>
+            ) : null}
+            {isOutOfStock ? (
+              <span className="mb-2 self-start rounded-full bg-black/80 px-2 py-1 text-[10px] font-semibold text-white">Rupture</span>
+            ) : null}
+            <MediaImage
+              src={product.image}
+              alt={product.name}
+              className="relative z-0 h-auto w-[80%] object-contain drop-shadow-md"
+              fallbackClassName="relative z-0 h-[70%] w-[80%]"
+            />
+          </div>
         </Link>
         <button
           type="button"
           aria-label={wished ? 'Retirer des favoris' : 'Ajouter aux favoris'}
-          className="absolute right-4 top-4 z-[2] flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-gray-600 shadow-sm transition-colors hover:bg-white"
+          className="absolute right-4 top-14 z-[2] flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-gray-600 shadow-sm transition-colors hover:bg-white"
           onClick={(e) => {
             e.preventDefault();
-              onToggleWishlist(product, wished);
+            onToggleWishlist(product, wished);
           }}
         >
           <Heart className={`h-5 w-5 ${wished ? 'fill-[#c45c5c] text-[#c45c5c]' : ''}`} />
@@ -57,17 +71,26 @@ function ProductCardBase({ product, wished, onToggleWishlist, onAddToCart }: Pro
 
       <div className="flex flex-col gap-1">
         <Link to={`/product/${product.slug}`}>
-          <h3 className="font-medium text-[#1a1a1a] group-hover:text-[#a4a374] transition-colors">{product.name}</h3>
-          <p className="text-xs text-gray-500 truncate">{product.ingredients}</p>
+          <h3 className="font-medium text-[#1a1a1a] transition-colors group-hover:text-[#a4a374]">{product.name}</h3>
+          <p className="truncate text-xs text-gray-500">{product.shortDescription?.trim() || product.ingredients}</p>
         </Link>
-        <div className="mt-2 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-[#303030]">{formatPrice(product.price)}</span>
-            {hasPromo ? <span className="text-xs text-gray-400 line-through">{formatPrice(product.compareAtPrice!)}</span> : null}
+        <div className="mt-2 flex items-center justify-between gap-2">
+          <div className="flex min-w-0 flex-col gap-0.5">
+            {hasVariants ? (
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">À partir de</span>
+            ) : null}
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-bold text-[#303030]">{formatPrice(product.price)}</span>
+              {hasPromo ? <span className="text-xs text-gray-400 line-through">{formatPrice(product.compareAtPrice!)}</span> : null}
+            </div>
+            {hasVariants && typeof product.stockQty === 'number' ? (
+              <span className="text-[10px] text-gray-500">Stock indicatif : {product.stockQty}</span>
+            ) : null}
           </div>
           <button
+            type="button"
             onClick={() => onAddToCart(product)}
-            className="h-8 w-8 cursor-pointer rounded-full bg-[#1a1a1a] flex items-center justify-center transition-colors hover:bg-[#a4a374]"
+            className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full bg-[#1a1a1a] transition-colors hover:bg-[#a4a374]"
             aria-label="Add to cart"
             disabled={isOutOfStock}
           >

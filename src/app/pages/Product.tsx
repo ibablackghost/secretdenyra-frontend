@@ -10,7 +10,8 @@ import { ProductPageSkeleton } from '../features/catalog/components/ProductPageS
 import { MediaImage } from '../components/ui/MediaImage';
 import { ProductCard } from '../features/catalog/components/ProductCard';
 import { useToast } from '../hooks/useToast';
-import type { UIProduct } from '../features/catalog/types';
+import type { UIProduct, UIProductVariant } from '../features/catalog/types';
+import { getDefaultVariant, stockForLine } from '../features/catalog/productUtils';
 import { useViewedProductsStore } from '../store/viewedProductsStore';
 import { useSeo } from '../hooks/useSeo';
 import { trackAddToCart, trackViewProduct } from '../services/analytics/tracking';
@@ -28,16 +29,20 @@ export const Product = () => {
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
-  const [selectedSize, setSelectedSize] = useState('');
-  const [selectedColor, setSelectedColor] = useState('');
+  const [selectedVariant, setSelectedVariant] = useState<UIProductVariant | null>(null);
   const { success, info } = useToast();
   const pushViewed = useViewedProductsStore((s) => s.push);
 
+  const seoTitle = product?.metaTitle?.trim() || product?.name || 'Produit';
+  const seoDescription =
+    product?.metaDescription?.trim() ||
+    product?.shortDescription?.trim() ||
+    product?.ingredients ||
+    'Produit Secret de Nyra.';
+
   useSeo({
-    title: product ? product.name : 'Produit',
-    description: product
-      ? `${product.name} - ${product.ingredients}. Achetez en ligne sur Secret de Nyra.`
-      : 'Produit Secret de Nyra.',
+    title: seoTitle,
+    description: seoDescription,
     canonicalPath: product ? `/product/${product.slug}` : '/shop',
     ogImage: product?.image,
   });
@@ -50,43 +55,37 @@ export const Product = () => {
   useEffect(() => {
     setSelectedImageIndex(0);
     if (!product) return;
-    const sizes = Array.from(new Set(product.variants.map((v) => v.size).filter(Boolean))) as string[];
-    const colors = Array.from(new Set(product.variants.map((v) => v.colorName).filter(Boolean))) as string[];
-    setSelectedSize(sizes[0] ?? '');
-    setSelectedColor(colors[0] ?? '');
+    setSelectedVariant(getDefaultVariant(product));
     setQuantity(1);
-  }, [product?.id]);
+  }, [product?.slug]);
 
   useEffect(() => {
     if (product?.id) void pushViewed(product.id);
   }, [product?.id, pushViewed]);
 
+  const resolvedVariant = useMemo(
+    () => (product ? selectedVariant ?? getDefaultVariant(product) : null),
+    [product, selectedVariant]
+  );
+
+  const effectivePrice = resolvedVariant?.price ?? product?.price ?? 0;
+  const effectiveCompareAt = resolvedVariant?.compareAtPrice ?? product?.compareAtPrice;
+  const { qty: effectiveStockQty, inStock: variantStockOk } = product
+    ? stockForLine(product, resolvedVariant?.id)
+    : { qty: undefined, inStock: true };
+  const isInStock = variantStockOk;
+  const maxQty = Math.max(1, Math.min(effectiveStockQty ?? 20, 20));
+
   useEffect(() => {
     if (!product) return;
-    trackViewProduct(product);
-  }, [product]);
-
-  const filteredVariants = useMemo(() => {
-    if (!product?.variants?.length) return [];
-    return product.variants.filter((variant) => {
-      const sizeOk = selectedSize ? variant.size === selectedSize : true;
-      const colorOk = selectedColor ? variant.colorName === selectedColor : true;
-      return sizeOk && colorOk;
-    });
-  }, [product?.variants, selectedSize, selectedColor]);
-
-  const activeVariant = filteredVariants[0];
-  const effectivePrice = activeVariant?.price ?? product?.price ?? 0;
-  const effectiveCompareAt = activeVariant?.compareAtPrice ?? product?.compareAtPrice;
-  const effectiveStockQty = activeVariant?.stockQty ?? product?.stockQty;
-  const isInStock = (activeVariant?.inStock ?? product?.inStock ?? true) && (effectiveStockQty === undefined || effectiveStockQty > 0);
-  const maxQty = Math.max(1, Math.min(effectiveStockQty ?? 20, 20));
+    trackViewProduct({ ...product, price: resolvedVariant?.price ?? product.price });
+  }, [product, resolvedVariant?.id]);
 
   const similarProducts = useMemo(() => {
     if (!product) return [];
     const productTagSlugs = new Set(product.tags.map((tag) => tag.slug));
     return products
-      .filter((item) => item.id !== product.id)
+      .filter((item) => item.id !== product.id && item.slug !== product.slug)
       .map((item) => {
         let score = 0;
         if (item.category.slug === product.category.slug) score += 2;
@@ -98,20 +97,41 @@ export const Product = () => {
       .map(({ item }) => item);
   }, [product, products]);
 
+  const descriptionBlocks = useMemo(() => {
+    if (!product) return [];
+    const parts: string[] = [];
+    if (product.shortDescription?.trim()) parts.push(product.shortDescription.trim());
+    if (product.description?.trim() && product.description.trim() !== product.shortDescription?.trim()) {
+      parts.push(product.description.trim());
+    }
+    if (parts.length === 0 && product.ingredients?.trim()) parts.push(product.ingredients.trim());
+    return parts;
+  }, [product]);
+
+  const hasInfusionExtras = Boolean(
+    product &&
+      (product.dosage ||
+        product.infusionTime ||
+        product.temperature ||
+        product.botanicalName ||
+        product.origin)
+  );
+
   const handleAdd = () => {
     if (!product || !isInStock) return;
-    for (let i = 0; i < quantity; i++) {
-      addItem(product.id);
-    }
-    trackAddToCart(product, quantity);
+    const variantId = product.variants.length > 0 ? resolvedVariant?.id : undefined;
+    if (product.variants.length > 0 && !variantId) return;
+    void addItem(product.id, { variantId, quantity });
+    trackAddToCart({ ...product, price: effectivePrice }, quantity);
     success(`Ajouté au panier: ${product.name} x${quantity}`);
     setAdded(true);
     setTimeout(() => setAdded(false), 2000);
   };
 
   const handleAddToCart = (item: UIProduct) => {
-    addItem(item.id);
-    trackAddToCart(item, 1);
+    const def = getDefaultVariant(item);
+    void addItem(item.id, { variantId: def?.id, quantity: 1 });
+    trackAddToCart({ ...item, price: def?.price ?? item.price }, 1);
     success(`Ajouté au panier: ${item.name}`);
   };
 
@@ -144,19 +164,27 @@ export const Product = () => {
 
   return (
     <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-8 md:py-16">
-      {/* Fil d'Ariane */}
       <div className="flex items-center gap-2 text-sm text-gray-500 mb-8 font-['Mulish',sans-serif]">
-        <Link to="/" className="hover:text-[#1a1a1a] transition-colors">Accueil</Link>
+        <Link to="/" className="hover:text-[#1a1a1a] transition-colors">
+          Accueil
+        </Link>
         <span className="text-gray-300">/</span>
-        <Link to="/shop" className="hover:text-[#1a1a1a] transition-colors">Boutique</Link>
+        <Link to="/shop" className="hover:text-[#1a1a1a] transition-colors">
+          Boutique
+        </Link>
+        <span className="text-gray-300">/</span>
+        <Link to={`/shop/category/${product.category.slug}`} className="hover:text-[#1a1a1a] transition-colors truncate">
+          {product.category.name}
+        </Link>
         <span className="text-gray-300">/</span>
         <span className="text-[#1a1a1a] font-medium truncate">{product.name}</span>
       </div>
 
       <div className="flex flex-col md:flex-row gap-12 lg:gap-20">
-        {/* Images Produit */}
         <div className="w-full md:w-1/2 flex flex-col gap-4">
-          <div className={`${product.bgClass} w-full aspect-[4/5] sm:aspect-square rounded-[16px] flex items-center justify-center p-8 relative overflow-hidden bg-gray-50`}>
+          <div
+            className={`${product.bgClass} w-full aspect-[4/5] sm:aspect-square rounded-[16px] flex items-center justify-center p-8 relative overflow-hidden bg-gray-50`}
+          >
             <button
               type="button"
               aria-label={inWishlist ? 'Retirer des favoris' : 'Ajouter aux favoris'}
@@ -188,77 +216,92 @@ export const Product = () => {
           </div>
         </div>
 
-        {/* Détails Produit */}
         <div className="w-full md:w-1/2 flex flex-col pt-2 md:pt-6">
           <div className="flex flex-col gap-3 mb-6">
             <span className="text-xs font-bold tracking-widest text-[#a4a374] uppercase font-['Mulish',sans-serif]">{product.category.name}</span>
             <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-[#1a1a1a] font-['Mulish',sans-serif] leading-tight">{product.name}</h1>
-            
+
+            <div className="flex flex-wrap gap-2">
+              {product.tags.slice(0, 6).map((tag) => (
+                <span key={tag.slug} className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
+                  {tag.name}
+                </span>
+              ))}
+            </div>
+
             <div className="flex items-center gap-4 mt-2">
               <div className="flex items-center gap-1">
-                {[1,2,3,4,5].map(star => (
-                  <Star key={star} className={`w-4 h-4 ${star <= Math.floor(product.rating) ? 'fill-[#a4a374] text-[#a4a374]' : 'fill-gray-200 text-gray-200'}`} />
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <Star
+                    key={star}
+                    className={`w-4 h-4 ${star <= Math.floor(product.rating) ? 'fill-[#a4a374] text-[#a4a374]' : 'fill-gray-200 text-gray-200'}`}
+                  />
                 ))}
               </div>
-              <span className="text-sm text-gray-500 underline decoration-gray-300 underline-offset-4 cursor-pointer hover:text-black">Voir les {product.reviews} avis</span>
+              <span className="text-sm text-gray-500 underline decoration-gray-300 underline-offset-4 cursor-pointer hover:text-black">
+                Voir les {product.reviews} avis
+              </span>
             </div>
           </div>
-          
-          <div className="text-3xl font-bold text-[#1a1a1a] mb-6">
+
+          <div className="text-3xl font-bold text-[#1a1a1a] mb-2">
             {formatPrice(effectivePrice)}
             {effectiveCompareAt && effectiveCompareAt > effectivePrice ? (
               <span className="ml-3 text-lg font-medium text-gray-400 line-through">{formatPrice(effectiveCompareAt)}</span>
             ) : null}
           </div>
+          {product.variants.length > 1 ? (
+            <p className="mb-6 text-sm text-gray-500">Prix selon le format sélectionné.</p>
+          ) : (
+            <div className="mb-6" />
+          )}
 
-          <p className="text-base text-gray-600 mb-8 leading-relaxed">
-            {product.ingredients}. Un mélange réconfortant spécialement conçu pour votre bien-être. L'association des plantes soigneusement sélectionnées offre une tasse équilibrée, savoureuse et riche en bienfaits naturels.
-          </p>
+          {descriptionBlocks[0] ? (
+            <p className="text-base text-gray-600 mb-6 leading-relaxed">{descriptionBlocks[0]}</p>
+          ) : null}
 
-          {/* Variantes (taille/couleur) */}
           {product.variants.length > 0 ? (
-            <div className="mb-8 space-y-5">
-              {Array.from(new Set(product.variants.map((v) => v.size).filter(Boolean))).length > 0 ? (
-                <div>
-                  <h3 className="mb-2 text-sm font-bold uppercase tracking-wider text-[#1a1a1a]">Taille</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {Array.from(new Set(product.variants.map((v) => v.size).filter(Boolean))).map((size) => (
-                      <button
-                        key={size}
-                        type="button"
-                        onClick={() => setSelectedSize(size!)}
-                        className={`rounded-[8px] px-4 py-2 text-sm ${selectedSize === size ? 'border-2 border-[#a4a374] bg-[#a4a374]/5 font-semibold' : 'border border-gray-200 text-gray-700'}`}
-                      >
-                        {size}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
+            <div className="mb-8 space-y-3">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-[#1a1a1a]">Format</h3>
+              <div className="flex flex-wrap gap-2">
+                {product.variants.map((variant) => {
+                  const active = resolvedVariant?.id === variant.id;
+                  const disabled = variant.inStock === false || (typeof variant.stockQty === 'number' && variant.stockQty <= 0);
+                  const label = variant.label ?? variant.format ?? variant.name ?? variant.size ?? 'Option';
+                  const vPrice = variant.price ?? product.price;
+                  return (
+                    <button
+                      key={variant.id}
+                      type="button"
+                      disabled={disabled}
+                      onClick={() => setSelectedVariant(variant)}
+                      className={`rounded-[10px] border px-4 py-2 text-left text-sm transition-colors ${
+                        disabled
+                          ? 'cursor-not-allowed border-gray-100 bg-gray-50 text-gray-400'
+                          : active
+                            ? 'border-2 border-[#a4a374] bg-[#a4a374]/5 font-semibold'
+                            : 'border border-gray-200 text-gray-800 hover:border-[#a4a374]/40'
+                      }`}
+                    >
+                      <div className="font-medium">{label}</div>
+                      <div className="text-xs text-gray-600">{formatPrice(vPrice)}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
 
-              {Array.from(new Set(product.variants.map((v) => v.colorName).filter(Boolean))).length > 0 ? (
-                <div>
-                  <h3 className="mb-2 text-sm font-bold uppercase tracking-wider text-[#1a1a1a]">Couleur</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {Array.from(new Set(product.variants.map((v) => v.colorName).filter(Boolean))).map((color) => {
-                      const colorHex = product.variants.find((v) => v.colorName === color)?.colorHex;
-                      return (
-                        <button
-                          key={color}
-                          type="button"
-                          onClick={() => setSelectedColor(color!)}
-                          className={`inline-flex items-center gap-2 rounded-[8px] px-3 py-2 text-sm ${
-                            selectedColor === color ? 'border-2 border-[#a4a374] bg-[#a4a374]/5 font-semibold' : 'border border-gray-200 text-gray-700'
-                          }`}
-                        >
-                          {colorHex ? <span className="h-3 w-3 rounded-full border border-black/10" style={{ backgroundColor: colorHex }} /> : null}
-                          {color}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ) : null}
+          {hasInfusionExtras ? (
+            <div className="mb-8 rounded-[12px] border border-gray-100 bg-[#fafafa] p-4 text-sm text-gray-700">
+              <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-[#1a1a1a]">Préparation &amp; origine</h3>
+              <ul className="space-y-1">
+                {product.dosage ? <li>Dosage : {product.dosage}</li> : null}
+                {product.infusionTime ? <li>Temps d&apos;infusion : {product.infusionTime}</li> : null}
+                {product.temperature ? <li>Température : {product.temperature}</li> : null}
+                {product.botanicalName ? <li>Nom botanique : {product.botanicalName}</li> : null}
+                {product.origin ? <li>Origine : {product.origin}</li> : null}
+              </ul>
             </div>
           ) : null}
 
@@ -268,66 +311,81 @@ export const Product = () => {
                 isInStock ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
               }`}
             >
-              {isInStock ? `En stock${effectiveStockQty ? ` (${effectiveStockQty})` : ''}` : 'Rupture de stock'}
+              {isInStock ? `En stock${effectiveStockQty !== undefined ? ` (${effectiveStockQty})` : ''}` : 'Rupture de stock'}
             </span>
           </div>
 
-          {/* Actions d'Achat */}
           <div className="flex flex-col sm:flex-row gap-4 mb-10 pt-4">
-             <div className="flex items-center justify-between border border-gray-300 rounded-[8px] h-[52px] w-full sm:w-[140px] px-2 bg-white">
-               <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-black rounded-md hover:bg-gray-50 transition-colors" disabled={!isInStock}>
-                 <Minus className="w-4 h-4" />
-               </button>
-               <span className="font-semibold text-[#1a1a1a] text-lg">{quantity}</span>
-               <button onClick={() => setQuantity(Math.min(maxQty, quantity + 1))} className="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-black rounded-md hover:bg-gray-50 transition-colors" disabled={!isInStock}>
-                 <Plus className="w-4 h-4" />
-               </button>
-             </div>
+            <div className="flex items-center justify-between border border-gray-300 rounded-[8px] h-[52px] w-full sm:w-[140px] px-2 bg-white">
+              <button
+                type="button"
+                onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                className="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-black rounded-md hover:bg-gray-50 transition-colors"
+                disabled={!isInStock}
+              >
+                <Minus className="w-4 h-4" />
+              </button>
+              <span className="font-semibold text-[#1a1a1a] text-lg">{quantity}</span>
+              <button
+                type="button"
+                onClick={() => setQuantity(Math.min(maxQty, quantity + 1))}
+                className="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-black rounded-md hover:bg-gray-50 transition-colors"
+                disabled={!isInStock}
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
 
-             <button 
-               onClick={handleAdd}
-               disabled={!isInStock}
-               className={`flex-1 h-[52px] rounded-[8px] font-bold text-base flex items-center justify-center gap-2 transition-all ${
-                 added ? 'bg-green-600 text-white' : 'bg-[#1a1a1a] hover:bg-[#303030] text-white shadow-lg shadow-black/10 disabled:opacity-60 disabled:cursor-not-allowed'
-               }`}
-             >
-               {added ? (
-                 <><Check className="w-5 h-5" /> Ajouté au panier</>
-               ) : (
-                 isInStock ? 'Ajouter au panier' : 'Indisponible'
-               )}
-             </button>
+            <button
+              type="button"
+              onClick={handleAdd}
+              disabled={!isInStock || (product.variants.length > 0 && !resolvedVariant)}
+              className={`flex-1 h-[52px] rounded-[8px] font-bold text-base flex items-center justify-center gap-2 transition-all ${
+                added
+                  ? 'bg-green-600 text-white'
+                  : 'bg-[#1a1a1a] hover:bg-[#303030] text-white shadow-lg shadow-black/10 disabled:opacity-60 disabled:cursor-not-allowed'
+              }`}
+            >
+              {added ? (
+                <>
+                  <Check className="w-5 h-5" /> Ajouté au panier
+                </>
+              ) : isInStock ? (
+                'Ajouter au panier'
+              ) : (
+                'Indisponible'
+              )}
+            </button>
           </div>
 
-          {/* Réassurance */}
           <div className="grid grid-cols-1 gap-4 text-sm text-[#1a1a1a] py-6 border-y border-gray-100">
-             <div className="flex items-center gap-3">
-               <div className="w-8 h-8 rounded-full bg-[#a4a374]/10 flex items-center justify-center shrink-0">
-                 <Truck className="w-4 h-4 text-[#a4a374]" />
-               </div>
-               <span className="font-medium">Livraison offerte dès 45 000 XOF d'achat</span>
-             </div>
-             <div className="flex items-center gap-3">
-               <div className="w-8 h-8 rounded-full bg-[#a4a374]/10 flex items-center justify-center shrink-0">
-                 <ShieldCheck className="w-4 h-4 text-[#a4a374]" />
-               </div>
-               <span className="font-medium">Thé certifié 100% agriculture biologique</span>
-             </div>
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-[#a4a374]/10 flex items-center justify-center shrink-0">
+                <Truck className="w-4 h-4 text-[#a4a374]" />
+              </div>
+              <span className="font-medium">Livraison offerte dès 45 000 XOF d&apos;achat</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-[#a4a374]/10 flex items-center justify-center shrink-0">
+                <ShieldCheck className="w-4 h-4 text-[#a4a374]" />
+              </div>
+              <span className="font-medium">Produits sélectionnés avec exigence qualité</span>
+            </div>
           </div>
         </div>
       </div>
-      
-      {/* Onglets de Description */}
+
       <div className="mt-16 md:mt-24">
-         <div className="flex gap-8 border-b border-gray-200 mb-8 overflow-x-auto whitespace-nowrap scrollbar-hide">
-           <button className="pb-4 font-bold text-[#1a1a1a] border-b-2 border-[#a4a374] text-lg font-['Mulish',sans-serif]">Description</button>
-           <button className="pb-4 font-medium text-gray-400 hover:text-[#1a1a1a] text-lg font-['Mulish',sans-serif] transition-colors">Conseils de préparation</button>
-           <button className="pb-4 font-medium text-gray-400 hover:text-[#1a1a1a] text-lg font-['Mulish',sans-serif] transition-colors">Avis ({product.reviews})</button>
-         </div>
-         <div className="max-w-3xl text-gray-600 leading-relaxed space-y-6 text-base">
-           <p>Un mélange réconfortant spécialement conçu pour faciliter la digestion après les repas. L'association de la menthe poivrée, rafraîchissante, de l'anis et du fenouil, connus pour leurs propriétés digestives, offre une tasse équilibrée et savoureuse.</p>
-           <p>Cultivé dans le respect de la nature, sans pesticides, pour préserver toutes les qualités gustatives et les bienfaits des plantes. À conserver dans un endroit frais et sec, à l'abri de la lumière pour préserver tous ses arômes.</p>
-         </div>
+        <div className="flex gap-8 border-b border-gray-200 mb-8 overflow-x-auto whitespace-nowrap scrollbar-hide">
+          <span className="pb-4 font-bold text-[#1a1a1a] border-b-2 border-[#a4a374] text-lg font-['Mulish',sans-serif]">Description</span>
+        </div>
+        <div className="max-w-3xl text-gray-600 leading-relaxed space-y-6 text-base">
+          {descriptionBlocks.length > 0 ? (
+            descriptionBlocks.map((block, i) => <p key={i}>{block}</p>)
+          ) : (
+            <p>Description à venir.</p>
+          )}
+        </div>
       </div>
 
       {similarProducts.length > 0 ? (

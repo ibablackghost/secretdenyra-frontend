@@ -17,7 +17,7 @@ function authHeaders(token: string) {
   return { Authorization: `Bearer ${token}` };
 }
 
-export type RemoteCartItem = { productId: string; quantity: number; id?: string; itemId?: string };
+export type RemoteCartItem = { productId: string; quantity: number; id?: string; itemId?: string; variantId?: string };
 export type RemoteWishlistItem = {
   id?: string;
   productId?: string;
@@ -102,34 +102,63 @@ export type CheckoutInitInput = {
     country: string;
   };
   billingSameAsShipping: boolean;
-  items: Array<{ productId: string; quantity: number }>;
+  items: Array<{ productId: string; quantity: number; variantId?: string }>;
 };
 
 export async function getCart(token: string) {
   const response = await requestJson<{
-    items?: Array<{ id?: string; itemId?: string; productId?: string; quantity?: number; product?: { id?: string; slug?: string } }>;
+    items?: Array<{
+      id?: string;
+      itemId?: string;
+      productId?: string;
+      variantId?: string;
+      quantity?: number;
+      product?: { id?: string; slug?: string };
+    }>;
   }>(url('/api/cart'), {
     method: 'GET',
     headers: authHeaders(token),
   });
   const items = Array.isArray(response.items)
     ? response.items
-        .map((item) => ({
-          id: item.id ?? item.itemId,
-          itemId: item.itemId ?? item.id,
-          productId: item.productId ?? item.product?.id ?? item.product?.slug ?? '',
-          quantity: Number(item.quantity ?? 0) || 0,
-        }))
+        .map((raw) => {
+          const item = raw as Record<string, unknown>;
+          const nestedVariant =
+            item.variant && typeof item.variant === 'object'
+              ? (item.variant as Record<string, unknown>).id ?? (item.variant as Record<string, unknown>).documentId
+              : undefined;
+          const variantRaw = item.variantId ?? item.variant_id ?? nestedVariant;
+          const variantId =
+            variantRaw !== undefined && variantRaw !== null && String(variantRaw).trim() !== ''
+              ? String(variantRaw).trim()
+              : undefined;
+          const productNested = item.product && typeof item.product === 'object' ? (item.product as Record<string, unknown>) : undefined;
+          const productId = String(
+            item.productId ?? productNested?.id ?? productNested?.documentId ?? productNested?.slug ?? ''
+          ).trim();
+          return {
+            id: (item.id ?? item.itemId) as string | undefined,
+            itemId: (item.itemId ?? item.id) as string | undefined,
+            productId,
+            variantId,
+            quantity: Number(item.quantity ?? 0) || 0,
+          };
+        })
         .filter((item) => Boolean(item.productId) && item.quantity > 0)
     : [];
   return { items };
 }
 
-export async function addCartItem(token: string, input: { productId: string; quantity: number }) {
+export async function addCartItem(token: string, input: { productId: string; quantity: number; variantId?: string }) {
+  const body: { productId: string; quantity: number; variantId?: string } = {
+    productId: input.productId,
+    quantity: input.quantity,
+  };
+  if (input.variantId) body.variantId = input.variantId;
   return requestJson<{ items: RemoteCartItem[] }>(url('/api/cart/items'), {
     method: 'POST',
     headers: authHeaders(token),
-    body: input,
+    body,
   });
 }
 

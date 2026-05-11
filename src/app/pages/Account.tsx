@@ -59,9 +59,9 @@ export const Account = () => {
 
   if (!user) return null;
 
-  const wishlistProducts = products.filter((p) => wishlistIds.includes(p.id)).slice(0, 4);
+  const wishlistProducts = products.filter((p) => wishlistIds.includes(p.id) || wishlistIds.includes(p.slug)).slice(0, 4);
   const viewedProducts = viewedIds
-    .map((id) => products.find((p) => p.id === id))
+    .map((id) => products.find((p) => p.id === id || p.slug === id))
     .filter((item): item is NonNullable<typeof item> => Boolean(item))
     .slice(0, 4);
   const defaultAddress = addresses.find((a) => a.isDefault) ?? addresses[0];

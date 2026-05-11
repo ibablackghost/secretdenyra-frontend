@@ -11,6 +11,7 @@ import { ErrorState, LoadingState } from '../components/ui/AsyncState';
 import { useOrderStore } from '../store/orderStore';
 import { usePurchasedProductsStore } from '../store/purchasedProductsStore';
 import { useAuthStore } from '../store/authStore';
+import { unitPriceForLine } from '../features/catalog/productUtils';
 import { ApiError } from '../services/api/apiError';
 import { confirmCheckout, initCheckout } from '../services/api/commerceApi';
 import {
@@ -68,15 +69,17 @@ export const Checkout = () => {
     () =>
       cartItems
         .map((item) => {
-          const product = products.find((p) => p.id === item.productId);
-          return product ? { ...product, quantity: item.quantity } : null;
+          const product = products.find((p) => p.id === item.productId || p.slug === item.productId);
+          if (!product) return null;
+          const unitPrice = unitPriceForLine(product, item.variantId);
+          return { ...product, storeProductId: item.productId, quantity: item.quantity, variantId: item.variantId, unitPrice };
         })
         .filter((item): item is NonNullable<typeof item> => Boolean(item)),
     [cartItems, products]
   );
 
   const subtotal = useMemo(
-    () => cartProducts.reduce((acc, item) => acc + item.price * item.quantity, 0),
+    () => cartProducts.reduce((acc, item) => acc + item.unitPrice * item.quantity, 0),
     [cartProducts]
   );
   const shippingFee = subtotal > 45000 || subtotal === 0 ? 0 : 2500;
@@ -189,9 +192,9 @@ export const Checkout = () => {
         shippingFee,
         total,
         items: cartProducts.map((item) => ({
-          productId: item.id,
+          productId: item.storeProductId,
           name: item.name,
-          unitPrice: item.price,
+          unitPrice: item.unitPrice,
           quantity: item.quantity,
         })),
       });
@@ -211,8 +214,9 @@ export const Checkout = () => {
             billingAddress: billingSameAsShipping ? shipping : billing,
             billingSameAsShipping,
             items: cartProducts.map((item) => ({
-              productId: item.id,
+              productId: item.storeProductId,
               quantity: item.quantity,
+              variantId: item.variantId,
             })),
           });
           const checkoutId = init.checkoutId ?? init.checkout_session_id;
@@ -396,9 +400,16 @@ export const Checkout = () => {
                   ) : (
                     <div className="space-y-3">
                       {cartProducts.map((item) => (
-                        <div key={item.id} className="flex items-center justify-between rounded-[10px] bg-gray-50 px-3 py-2 text-sm">
-                          <span>{item.name} x{item.quantity}</span>
-                          <span className="font-semibold">{formatPrice(item.price * item.quantity)}</span>
+                        <div
+                          key={`${item.storeProductId}-${item.variantId ?? ''}`}
+                          className="flex items-center justify-between rounded-[10px] bg-gray-50 px-3 py-2 text-sm"
+                        >
+                          <span>
+                            {item.name}
+                            {item.variantId ? ` (${item.variants.find((v) => v.id === item.variantId)?.label ?? ''})` : ''}{' '}
+                            x{item.quantity}
+                          </span>
+                          <span className="font-semibold">{formatPrice(item.unitPrice * item.quantity)}</span>
                         </div>
                       ))}
                     </div>
