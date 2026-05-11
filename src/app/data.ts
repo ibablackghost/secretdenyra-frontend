@@ -15,7 +15,7 @@ export const products = [
     rating: 4.9,
     reviews: 43,
     image: imgDigestion,
-    bgClass: 'bg-[#F2EDF3]',
+    bgClass: 'bg-white',
     category: 'Infusion'
   },
   {
@@ -26,7 +26,7 @@ export const products = [
     rating: 4.8,
     reviews: 120,
     image: imgDetox,
-    bgClass: 'bg-[#FDFCE0]',
+    bgClass: 'bg-white',
     category: 'Infusion'
   },
   {
@@ -37,7 +37,7 @@ export const products = [
     rating: 5.0,
     reviews: 89,
     image: imgDigestion,
-    bgClass: 'bg-[#F8E7E9]',
+    bgClass: 'bg-white',
     category: 'Tisanes'
   },
   {
@@ -48,7 +48,7 @@ export const products = [
     rating: 4.7,
     reviews: 210,
     image: imgDetox,
-    bgClass: 'bg-[#EAF3EA]',
+    bgClass: 'bg-white',
     category: 'Thé vert'
   }
 ];

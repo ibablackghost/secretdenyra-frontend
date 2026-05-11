@@ -106,8 +106,8 @@ export const Header = () => {
           <Link to="/shop/category/secret-de-nyra" className="hover:text-[#a4a374] transition-colors">
             Secret de Nyra
           </Link>
-          <Link to="/shop/category/nos-thes-bio" className="hover:text-[#a4a374] transition-colors">
-            Nos thés bio
+          <Link to="/shop/category/thes-bio" className="hover:text-[#a4a374] transition-colors">
+            Thé bio
           </Link>
           <Link to="/shop/category/tisanes" className="hover:text-[#a4a374] transition-colors">
             Tisanes
@@ -183,8 +183,8 @@ export const Header = () => {
             <Link to="/shop/category/secret-de-nyra" className="px-3 py-2 rounded-md hover:bg-gray-50 transition-colors">
               Secret de Nyra
             </Link>
-            <Link to="/shop/category/nos-thes-bio" className="px-3 py-2 rounded-md hover:bg-gray-50 transition-colors">
-              Nos thés bio
+            <Link to="/shop/category/thes-bio" className="px-3 py-2 rounded-md hover:bg-gray-50 transition-colors">
+              Thé bio
             </Link>
             <Link to="/shop/category/tisanes" className="px-3 py-2 rounded-md hover:bg-gray-50 transition-colors">
               Tisanes
@@ -259,7 +259,7 @@ export const Header = () => {
                             setShowSuggestions(false);
                           }}
                         >
-                          <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-gray-100">
+                          <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-white border border-gray-100">
                             <MediaImage
                               src={product.image}
                               alt={product.name}

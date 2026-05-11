@@ -22,7 +22,7 @@ function ProductCardBase({ product, wished, onToggleWishlist, onAddToCart }: Pro
 
   return (
     <div className="group flex flex-col gap-4">
-      <div className="relative aspect-[4/5] overflow-hidden rounded-[10px] bg-gray-100 transition-transform group-hover:scale-[1.02]">
+      <div className="relative aspect-[4/5] overflow-hidden rounded-[10px] bg-white transition-transform group-hover:scale-[1.02]">
         <Link to={`/product/${product.slug}`} className="absolute inset-0 flex flex-col items-stretch justify-between p-3">
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div className="flex max-w-[70%] flex-wrap items-center gap-1">

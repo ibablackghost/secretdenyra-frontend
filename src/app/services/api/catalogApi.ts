@@ -13,7 +13,12 @@ import type {
 import { requestJson } from './httpClient';
 
 type StrapiEntity<T> = { id?: number | string; attributes?: T } & T;
-type StrapiListResponse<T> = { data?: Array<StrapiEntity<T>> };
+type StrapiListResponse<T> = {
+  data?: Array<StrapiEntity<T>>;
+  meta?: {
+    pagination?: { page?: number; pageSize?: number; pageCount?: number; total?: number };
+  };
+};
 type StrapiMedia = { url?: string; formats?: Record<string, { url?: string }> };
 type StrapiCategory = { name?: string; slug?: string; image?: StrapiMedia | { data?: StrapiEntity<StrapiMedia> } };
 type StrapiTag = { name?: string; slug?: string };
@@ -60,7 +65,17 @@ type StrapiProduct = {
   tags?: Array<StrapiEntity<StrapiTag>> | { data?: Array<StrapiEntity<StrapiTag>> };
 };
 
-const SHOP_CATEGORY_SLUGS = new Set(['secret-de-nyra', 'nos-thes-bio', 'tisanes', 'herboristerie', 'cafes', 'accessoires']);
+const SHOP_CATEGORY_SLUGS = new Set([
+  'secret-de-nyra',
+  'thes-bio',
+  'tisanes',
+  'herboristerie',
+  'café',
+  'cafés',
+  'cafes',
+  'cafe',
+  'accessoires',
+]);
 const TEA_FAMILY_TAG_SLUGS = new Set(['the-noir', 'the-blanc', 'infusion', 'the-vert', 'bien-etre']);
 const TEA_FAMILY_TAGS_DISPLAY_ORDER: Array<{ slug: string; defaultName: string }> = [
   { slug: 'the-noir', defaultName: 'The noir' },
@@ -76,14 +91,6 @@ const categoryImageBySlug: Record<string, string> = {
   'the-vert': imgTheVert,
   'bien-etre': imgBienEtre,
 };
-const bgClassByCategorySlug: Record<string, string> = {
-  'the-noir': 'bg-[#F2EDF3]',
-  'the-blanc': 'bg-[#FDFCE0]',
-  infusion: 'bg-[#F8E7E9]',
-  'the-vert': 'bg-[#EAF3EA]',
-  'bien-etre': 'bg-[#FAF9F6]',
-};
-
 const STRAPI_URL = import.meta.env.VITE_STRAPI_URL;
 
 function asEntity<T>(value: unknown): StrapiEntity<T> | undefined {
@@ -132,8 +139,8 @@ function mapProduct(entity: StrapiEntity<StrapiProduct>): UIProduct | null {
   const slug = getString(readField(entity, 'slug'));
   const name = getString(readField(entity, 'name'));
   const categoryEntity = unwrapEntity<StrapiCategory>(readField(entity, 'category'));
-  const categorySlug = getString(readField(categoryEntity, 'slug'));
-  if (!slug || !name || !categorySlug) return null;
+  const categorySlug = getString(readField(categoryEntity, 'slug')) || 'non-classe';
+  if (!slug || !name) return null;
   const tags = unwrapEntityList<StrapiTag>(readField(entity, 'tags'))
     .map((tagEntity) => {
       const tagSlug = getString(readField(tagEntity, 'slug'));
@@ -185,7 +192,7 @@ function mapProduct(entity: StrapiEntity<StrapiProduct>): UIProduct | null {
     compareAtPrice: getNumber(readField(entity, 'compareAtPrice'), 0) || undefined,
     rating: getNumber(readField(entity, 'rating')),
     reviews: getNumber(readField(entity, 'reviews')),
-    bgClass: getString(readField(entity, 'bgClass')) || bgClassByCategorySlug[categorySlug] || 'bg-[#F5F5F5]',
+    bgClass: 'bg-white',
     image: mainImage,
     gallery: [mainImage, ...gallery].filter(Boolean),
     stockQty: getNumber(readField(entity, 'stockQty'), 0) || undefined,
@@ -196,18 +203,45 @@ function mapProduct(entity: StrapiEntity<StrapiProduct>): UIProduct | null {
   };
 }
 
+const STRAPI_PRODUCTS_PAGE_SIZE = 100;
+
+/** Strapi limite souvent à 25 entrées par page — on agrège toutes les pages. */
+async function fetchAllStrapiProductEntities(signal: AbortSignal | undefined): Promise<Array<StrapiEntity<StrapiProduct>>> {
+  const populate =
+    'populate[category]=true&populate[image]=true&populate[gallery]=true&populate[tags]=true&populate[variants]=true';
+  const all: Array<StrapiEntity<StrapiProduct>> = [];
+  let page = 1;
+  for (let safety = 0; safety < 200; safety++) {
+    const url = `${STRAPI_URL}/api/products?pagination[page]=${page}&pagination[pageSize]=${STRAPI_PRODUCTS_PAGE_SIZE}&${populate}`;
+    const json = await requestJson<StrapiListResponse<StrapiProduct>>(url, { signal });
+    const batch = json.data ?? [];
+    all.push(...batch);
+    const pageCount = json.meta?.pagination?.pageCount;
+    if (typeof pageCount === 'number' && pageCount >= 1 && page >= pageCount) break;
+    if (batch.length < STRAPI_PRODUCTS_PAGE_SIZE) break;
+    page += 1;
+  }
+  return all;
+}
+
+function dedupeProductsBySlug(products: UIProduct[]): UIProduct[] {
+  const bySlug = new Map<string, UIProduct>();
+  for (const p of products) {
+    if (!bySlug.has(p.slug)) bySlug.set(p.slug, p);
+  }
+  return [...bySlug.values()];
+}
+
 export async function fetchCatalog(signal?: AbortSignal): Promise<CatalogPayload> {
   if (!STRAPI_URL) throw new Error('VITE_STRAPI_URL est manquante.');
 
-  const [productsJson, categoriesJson] = await Promise.all([
-    requestJson<StrapiListResponse<StrapiProduct>>(
-      `${STRAPI_URL}/api/products?populate[category]=true&populate[image]=true&populate[gallery]=true&populate[tags]=true&populate[variants]=true`,
-      { signal }
-    ),
+  const [productEntities, categoriesJson] = await Promise.all([
+    fetchAllStrapiProductEntities(signal),
     requestJson<StrapiListResponse<StrapiCategory>>(`${STRAPI_URL}/api/categories`, { signal }),
   ]);
 
-  const products = (productsJson.data ?? []).map((item) => mapProduct(item)).filter(Boolean) as UIProduct[];
+  let products = productEntities.map((item) => mapProduct(item)).filter(Boolean) as UIProduct[];
+  products = dedupeProductsBySlug(products);
   const rawCategories = (categoriesJson.data ?? []).map((item) => mapCategory(item)).filter(Boolean) as UICategory[];
   const categories = rawCategories.filter((item) => SHOP_CATEGORY_SLUGS.has(item.slug));
 

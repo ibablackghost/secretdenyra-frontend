@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { useSearchParams, Link, useParams } from 'react-router';
+import { useSearchParams, Link, useParams, useNavigate, useLocation } from 'react-router';
 import { SlidersHorizontal, Search, RotateCcw, X } from 'lucide-react';
 import { useCartStore } from '../store/cartStore';
 import { useWishlistStore } from '../store/wishlistStore';
@@ -40,8 +40,24 @@ function buildPaginationItems(current: number, total: number): PaginationToken[]
   return result;
 }
 
+function isCoffeeCategorySlug(slug: string): boolean {
+  return slug === 'café' || slug === 'cafes' || slug === 'cafés' || slug === 'cafe';
+}
+
+/** Filtre catégorie URL ↔ slug renvoyé par Strapi (ex. thes-bio / nos-thes-bio, tisanes / tisane). */
+function productMatchesShopCategory(product: UIProduct, filterSlug: string): boolean {
+  const s = product.category.slug;
+  if (s === filterSlug) return true;
+  if (filterSlug === 'thes-bio' && (s === 'nos-thes-bio' || s === 'the-bio')) return true;
+  if (filterSlug === 'tisanes' && s === 'tisane') return true;
+  if (isCoffeeCategorySlug(filterSlug) && isCoffeeCategorySlug(s)) return true;
+  return false;
+}
+
 export const Shop = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const location = useLocation();
   const { categorySlug } = useParams();
   const categoryFilter = categorySlug ?? searchParams.get('category') ?? '';
   const teaFamilyTagFilter = searchParams.get('teaTag') ?? '';
@@ -64,7 +80,23 @@ export const Shop = () => {
   const { products, categories, tags, loading, error } = useCatalog();
   const { success, info } = useToast();
 
-  const selectedCategoryName = categoryFilter ? categories.find((c) => c.slug === categoryFilter)?.name : '';
+  const categoryDisplayName = useMemo(() => {
+    if (!categoryFilter) return 'Catalogue';
+    const hit = categories.find(
+      (c) =>
+        c.slug === categoryFilter ||
+        (categoryFilter === 'thes-bio' && c.slug === 'nos-thes-bio') ||
+        (categoryFilter === 'tisanes' && c.slug === 'tisane') ||
+        (isCoffeeCategorySlug(categoryFilter) && isCoffeeCategorySlug(c.slug))
+    );
+    if (hit?.name) return hit.name;
+    if (categoryFilter === 'thes-bio') return 'Thé bio';
+    if (categoryFilter === 'tisanes') return 'Tisanes';
+    if (isCoffeeCategorySlug(categoryFilter)) return 'Cafés';
+    return categoryFilter.replace(/-/g, ' ');
+  }, [categoryFilter, categories]);
+
+  const selectedCategoryName = categoryFilter ? categoryDisplayName : '';
   useSeo({
     title: selectedCategoryName ? `${selectedCategoryName} - Boutique` : 'Boutique',
     description: selectedCategoryName
@@ -76,6 +108,32 @@ export const Shop = () => {
   useEffect(() => {
     setInputValue(urlQ);
   }, [urlQ]);
+
+  useEffect(() => {
+    if (categorySlug === 'nos-thes-bio') {
+      navigate(`/shop/category/thes-bio${location.search}`, { replace: true });
+      return;
+    }
+    if (categorySlug === 'café' || categorySlug === 'cafés' || categorySlug === 'cafe') {
+      navigate(`/shop/category/cafes${location.search}`, { replace: true });
+    }
+  }, [categorySlug, navigate, location.search]);
+
+  useEffect(() => {
+    if (categorySlug) return;
+    const catQ = searchParams.get('category');
+    if (catQ === 'nos-thes-bio') {
+      const next = new URLSearchParams(searchParams);
+      next.set('category', 'thes-bio');
+      setSearchParams(next, { replace: true });
+      return;
+    }
+    if (catQ === 'café' || catQ === 'cafés' || catQ === 'cafe') {
+      const next = new URLSearchParams(searchParams);
+      next.set('category', 'cafes');
+      setSearchParams(next, { replace: true });
+    }
+  }, [categorySlug, searchParams, setSearchParams]);
 
   useEffect(() => {
     const t = window.setTimeout(() => {
@@ -100,7 +158,7 @@ export const Shop = () => {
     let result = [...products];
 
     if (categoryFilter) {
-      result = result.filter((p) => p.category.slug === categoryFilter);
+      result = result.filter((p) => productMatchesShopCategory(p, categoryFilter));
     }
 
     if (teaFamilyTagFilter) {
@@ -413,15 +471,11 @@ export const Shop = () => {
               Home
             </Link>
             <span className="text-gray-300">&gt;</span>
-            <span className="text-black font-medium">
-              {categoryFilter ? categories.find((c) => c.slug === categoryFilter)?.name : 'Nos thés bio'}
-            </span>
+            <span className="text-black font-medium">{categoryDisplayName}</span>
           </div>
 
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <h1 className="font-['Mulish',sans-serif] text-3xl md:text-4xl font-bold text-[#1a1a1a]">
-              {categoryFilter ? categories.find((c) => c.slug === categoryFilter)?.name : 'Nos thés bio'}
-            </h1>
+            <h1 className="font-['Mulish',sans-serif] text-3xl md:text-4xl font-bold text-[#1a1a1a]">{categoryDisplayName}</h1>
 
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-gray-500">Sort by</span>
@@ -483,7 +537,7 @@ export const Shop = () => {
           />
         )}
 
-        {totalItems > 0 && totalPages > 1 && (
+        {totalItems > 0 && (
           <nav
             className="mt-12 flex flex-col items-center gap-3 font-['Mulish',sans-serif]"
             aria-label="Pagination du catalogue"

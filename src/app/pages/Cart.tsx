@@ -141,7 +141,7 @@ export const Cart = () => {
         <div className="flex-1 flex flex-col gap-6">
           {cartProducts.map((item) => (
             <div key={item.lineKey} className="flex flex-col sm:flex-row items-start sm:items-center gap-6 p-4 rounded-[16px] border border-gray-100 bg-white">
-              <div className={`${item.bgClass} w-24 h-24 shrink-0 rounded-[12px] p-2 flex items-center justify-center`}>
+              <div className="w-24 h-24 shrink-0 rounded-[12px] bg-white p-2 flex items-center justify-center border border-gray-100">
                 <img src={item.image} alt={item.name} className="w-full h-full object-contain" />
               </div>
 

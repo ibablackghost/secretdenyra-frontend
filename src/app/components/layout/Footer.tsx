@@ -18,10 +18,10 @@ export const Footer = () => {
           {/* Links */}
           <div className="flex flex-col gap-3 font-['Mulish',sans-serif] text-sm text-black">
             <Link to="/" className="hover:text-[#a4a374] transition-colors">Secret de Nyra</Link>
-            <Link to="/shop" className="hover:text-[#a4a374] transition-colors">Nos thés bio</Link>
+            <Link to="/shop/category/thes-bio" className="hover:text-[#a4a374] transition-colors">Thé bio</Link>
             <Link to="/shop" className="hover:text-[#a4a374] transition-colors">Tisanes</Link>
             <Link to="/shop" className="hover:text-[#a4a374] transition-colors">Herboristerie</Link>
-            <Link to="/shop" className="hover:text-[#a4a374] transition-colors">Cafés</Link>
+            <Link to="/shop/category/cafes" className="hover:text-[#a4a374] transition-colors">Cafés</Link>
             <Link to="/shop" className="hover:text-[#a4a374] transition-colors">Accessoires</Link>
             <Link to="/shop" className="hover:text-[#a4a374] transition-colors uppercase">Votre MARQUE</Link>
             <span className="pt-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Compte</span>

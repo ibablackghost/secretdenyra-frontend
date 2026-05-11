@@ -182,9 +182,7 @@ export const Product = () => {
 
       <div className="flex flex-col md:flex-row gap-12 lg:gap-20">
         <div className="w-full md:w-1/2 flex flex-col gap-4">
-          <div
-            className={`${product.bgClass} w-full aspect-[4/5] sm:aspect-square rounded-[16px] flex items-center justify-center p-8 relative overflow-hidden bg-gray-50`}
-          >
+          <div className="w-full aspect-[4/5] sm:aspect-square rounded-[16px] flex items-center justify-center p-8 relative overflow-hidden bg-white">
             <button
               type="button"
               aria-label={inWishlist ? 'Retirer des favoris' : 'Ajouter aux favoris'}
@@ -206,7 +204,7 @@ export const Product = () => {
                 type="button"
                 key={`${product.id}-gallery-${index}`}
                 onClick={() => setSelectedImageIndex(index)}
-                className={`aspect-square rounded-[12px] bg-gray-50 border-2 ${
+                className={`aspect-square rounded-[12px] bg-white border-2 ${
                   selectedImageIndex === index ? 'border-[#a4a374]' : 'border-transparent hover:border-gray-200'
                 } p-2 flex items-center justify-center transition-colors`}
               >
