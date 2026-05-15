@@ -11,7 +11,7 @@ import { useToast } from '../hooks/useToast';
 import type { UIProduct } from '../features/catalog/types';
 import { useSeo } from '../hooks/useSeo';
 import { trackAddToCart } from '../services/analytics/tracking';
-import { getDefaultVariant, unitPriceForLine } from '../features/catalog/productUtils';
+import { getCatalogListPrice, getDefaultVariant, unitPriceForLine } from '../features/catalog/productUtils';
 
 const SHOP_PRODUCTS_PER_PAGE = 9;
 
@@ -63,8 +63,8 @@ export const Shop = () => {
   const teaFamilyTagFilter = searchParams.get('teaTag') ?? '';
   const urlQ = searchParams.get('q') ?? '';
   const sortBy = searchParams.get('sort') ?? 'popular';
-  const rawPriceMax = Number(searchParams.get('priceMax') ?? '50000');
-  const priceMax = Number.isFinite(rawPriceMax) ? Math.min(50000, Math.max(0, rawPriceMax)) : 50000;
+  const { products, categories, tags, loading, error } = useCatalog();
+
   const rawPage = Number(searchParams.get('page') ?? '1');
   const page = Number.isFinite(rawPage) && rawPage >= 1 ? Math.floor(rawPage) : 1;
   const rawPageSize = Number(searchParams.get('pageSize') ?? String(SHOP_PRODUCTS_PER_PAGE));
@@ -77,7 +77,6 @@ export const Shop = () => {
   const { addItem } = useCartStore();
   const toggleWishlist = useWishlistStore((s) => s.toggle);
   const isWishlisted = useWishlistStore((s) => s.isWishlisted);
-  const { products, categories, tags, loading, error } = useCatalog();
   const { success, info } = useToast();
 
   const categoryDisplayName = useMemo(() => {
@@ -136,6 +135,18 @@ export const Shop = () => {
   }, [categorySlug, searchParams, setSearchParams]);
 
   useEffect(() => {
+    if (!searchParams.has('priceMax')) return;
+    setSearchParams(
+      (prev) => {
+        const n = new URLSearchParams(prev);
+        n.delete('priceMax');
+        return n;
+      },
+      { replace: true }
+    );
+  }, [searchParams, setSearchParams]);
+
+  useEffect(() => {
     const t = window.setTimeout(() => {
       setSearchParams(
         (prev) => {
@@ -169,18 +180,16 @@ export const Shop = () => {
       result = result.filter((p) => productMatchesQuery(p, inputValue));
     }
 
-    result = result.filter((p) => p.price >= 0 && p.price <= priceMax);
-
     if (sortBy === 'price-low') {
-      result.sort((a, b) => a.price - b.price);
+      result.sort((a, b) => getCatalogListPrice(a) - getCatalogListPrice(b));
     } else if (sortBy === 'price-high') {
-      result.sort((a, b) => b.price - a.price);
+      result.sort((a, b) => getCatalogListPrice(b) - getCatalogListPrice(a));
     } else if (sortBy === 'rating') {
       result.sort((a, b) => b.rating - a.rating);
     }
 
     return result;
-  }, [categoryFilter, teaFamilyTagFilter, inputValue, priceMax, sortBy, products]);
+  }, [categoryFilter, teaFamilyTagFilter, inputValue, sortBy, products]);
 
   const totalItems = filteredProducts.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
@@ -251,32 +260,12 @@ export const Shop = () => {
                 sort: 'popular',
                 page: '1',
                 pageSize: String(SHOP_PRODUCTS_PER_PAGE),
-                priceMax: '50000',
               });
             }}
             className="w-8 h-8 flex items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:text-black hover:border-black transition-colors"
           >
             <RotateCcw className="w-4 h-4" />
           </button>
-        </div>
-
-        <div className="space-y-4">
-          <h3 className="font-bold text-lg text-[#1a1a1a] font-['Mulish',sans-serif]">Prix (XOF)</h3>
-          <div className="pt-2">
-            <input
-              type="range"
-              min="0"
-              max="50000"
-              step="1000"
-              value={priceMax}
-              onChange={(e) => updateQuery({ priceMax: String(Number(e.target.value)), page: '1' })}
-              className="w-full accent-black h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-            />
-            <div className="flex items-center justify-between text-sm text-gray-600 mt-4">
-              <span>0</span>
-              <span className="font-bold text-black">{priceMax}</span>
-            </div>
-          </div>
         </div>
 
         <div className="space-y-4">
@@ -475,7 +464,15 @@ export const Shop = () => {
           </div>
 
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <h1 className="font-['Mulish',sans-serif] text-3xl md:text-4xl font-bold text-[#1a1a1a]">{categoryDisplayName}</h1>
+            <div>
+              <h1 className="font-['Mulish',sans-serif] text-3xl md:text-4xl font-bold text-[#1a1a1a]">{categoryDisplayName}</h1>
+              {!loading && !error ? (
+                <p className="mt-1 text-sm text-gray-500 font-['Mulish',sans-serif]">
+                  {totalItems} produit{totalItems !== 1 ? 's' : ''}
+                  {totalPages > 1 ? ` · page ${safePage} / ${totalPages}` : ''}
+                </p>
+              ) : null}
+            </div>
 
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-gray-500">Sort by</span>
@@ -526,7 +523,6 @@ export const Shop = () => {
                     sort: 'popular',
                     page: '1',
                     pageSize: String(SHOP_PRODUCTS_PER_PAGE),
-                    priceMax: '50000',
                   });
                 }}
                 className="text-[#a4a374] font-medium hover:underline"

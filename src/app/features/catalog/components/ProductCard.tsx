@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 import { Heart, Star } from 'lucide-react';
 import type { UIProduct } from '../types';
 import { formatPrice } from '@/app/lib/price';
+import { getCatalogListPrice } from '../productUtils';
 import { MediaImage } from '@/app/components/ui/MediaImage';
 
 type ProductCardProps = {
@@ -14,7 +15,8 @@ type ProductCardProps = {
 
 function ProductCardBase({ product, wished, onToggleWishlist, onAddToCart }: ProductCardProps) {
   const hasVariants = (product.variants?.length ?? 0) > 0;
-  const hasPromo = Boolean(product.compareAtPrice && product.compareAtPrice > product.price);
+  const listPrice = getCatalogListPrice(product);
+  const hasPromo = Boolean(product.compareAtPrice && product.compareAtPrice > listPrice);
   const anyVariantBuyable = hasVariants
     ? product.variants.some((v) => v.inStock !== false && (v.stockQty === undefined || (v.stockQty ?? 0) > 0))
     : true;
@@ -80,7 +82,7 @@ function ProductCardBase({ product, wished, onToggleWishlist, onAddToCart }: Pro
               <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">À partir de</span>
             ) : null}
             <div className="flex flex-wrap items-center gap-2">
-              <span className="font-bold text-[#303030]">{formatPrice(product.price)}</span>
+              <span className="font-bold text-[#303030]">{formatPrice(listPrice)}</span>
               {hasPromo ? <span className="text-xs text-gray-400 line-through">{formatPrice(product.compareAtPrice!)}</span> : null}
             </div>
             {hasVariants && typeof product.stockQty === 'number' ? (

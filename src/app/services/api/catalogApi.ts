@@ -176,8 +176,13 @@ function mapProduct(entity: StrapiEntity<StrapiProduct>): UIProduct | null {
         colorHex: getString(readField(variantEntity, 'colorHex')) || undefined,
         price: getNumber(readField(variantEntity, 'price'), 0) || undefined,
         compareAtPrice: getNumber(readField(variantEntity, 'compareAtPrice'), 0) || undefined,
-        stockQty: getNumber(readField(variantEntity, 'stockQty'), 0) || undefined,
-        inStock: (readField(variantEntity, 'inStock') as boolean | undefined) ?? true,
+        stockQty:
+          getNumber(readField(variantEntity, 'stockQty'), 0) ||
+          getNumber(readField(variantEntity, 'stock'), 0) ||
+          undefined,
+        inStock:
+          (readField(variantEntity, 'inStock') as boolean | undefined) ??
+          ((readField(variantEntity, 'isActive') as boolean | undefined) ?? true),
       };
     })
     .filter(Boolean) as UIProductVariant[];
@@ -213,7 +218,7 @@ async function fetchAllStrapiProductEntities(signal: AbortSignal | undefined): P
   let page = 1;
   for (let safety = 0; safety < 200; safety++) {
     const url = `${STRAPI_URL}/api/products?pagination[page]=${page}&pagination[pageSize]=${STRAPI_PRODUCTS_PAGE_SIZE}&${populate}`;
-    const json = await requestJson<StrapiListResponse<StrapiProduct>>(url, { signal });
+    const json = await requestJson<StrapiListResponse<StrapiProduct>>(url, { signal, timeoutMs: 45_000 });
     const batch = json.data ?? [];
     all.push(...batch);
     const pageCount = json.meta?.pagination?.pageCount;
@@ -237,7 +242,7 @@ export async function fetchCatalog(signal?: AbortSignal): Promise<CatalogPayload
 
   const [productEntities, categoriesJson] = await Promise.all([
     fetchAllStrapiProductEntities(signal),
-    requestJson<StrapiListResponse<StrapiCategory>>(`${STRAPI_URL}/api/categories`, { signal }),
+    requestJson<StrapiListResponse<StrapiCategory>>(`${STRAPI_URL}/api/categories`, { signal, timeoutMs: 20_000 }),
   ]);
 
   let products = productEntities.map((item) => mapProduct(item)).filter(Boolean) as UIProduct[];
