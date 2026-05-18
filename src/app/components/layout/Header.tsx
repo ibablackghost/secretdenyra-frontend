@@ -1,21 +1,18 @@
-import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router';
-import { ShoppingBag, Search, User, Globe, Heart, Menu, X } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useLocation } from 'react-router';
+import { ShoppingBag, User, Globe, Heart, Menu, Search, X } from 'lucide-react';
 import { useCartStore } from '../../store/cartStore';
 import { useAuthStore } from '../../store/authStore';
 import { useWishlistStore } from '../../store/wishlistStore';
-import { useCatalog } from '@/app/hooks/useCatalog';
-import { MediaImage } from '@/app/components/ui/MediaImage';
+import { HeaderSearchPanel } from './HeaderSearchPanel';
 import imgLogo from 'figma:asset/04c30533fe5a9a60b6e7341851231c595d46cb74.png';
 
 export const Header = () => {
-  const navigate = useNavigate();
   const location = useLocation();
   const cartItems = useCartStore((state) => state.items);
   const cartCount = cartItems.reduce((acc, item) => acc + item.quantity, 0);
   const user = useAuthStore((s) => s.user);
   const wishCount = useWishlistStore((s) => s.count);
-  const { products } = useCatalog();
 
   const { accountLabel, accountInitials } = useMemo(() => {
     if (!user) return { accountLabel: null as string | null, accountInitials: null as string | null };
@@ -30,48 +27,13 @@ export const Header = () => {
     return { accountLabel: label, accountInitials: initials };
   }, [user]);
 
-  const [headerQ, setHeaderQ] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const searchWrapRef = useRef<HTMLDivElement | null>(null);
-
-  const suggestions = useMemo(() => {
-    const q = headerQ.trim().toLowerCase();
-    if (q.length < 2) return [];
-
-    return products
-      .filter((product) => product.name.toLowerCase().includes(q))
-      .slice(0, 6);
-  }, [headerQ, products]);
-
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const q = params.get('q') ?? '';
-    if (location.pathname === '/shop') setHeaderQ(q);
-  }, [location.pathname, location.search]);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   useEffect(() => {
     setMobileMenuOpen(false);
+    setSearchOpen(false);
   }, [location.pathname, location.search]);
-
-  useEffect(() => {
-    const onPointerDown = (event: MouseEvent) => {
-      if (!searchWrapRef.current) return;
-      if (!searchWrapRef.current.contains(event.target as Node)) {
-        setShowSuggestions(false);
-      }
-    };
-    document.addEventListener('mousedown', onPointerDown);
-    return () => document.removeEventListener('mousedown', onPointerDown);
-  }, []);
-
-  const runSearch = (e?: FormEvent) => {
-    e?.preventDefault();
-    const q = headerQ.trim();
-    setShowSuggestions(false);
-    if (q) navigate(`/shop?q=${encodeURIComponent(q)}`);
-    else navigate('/shop');
-  };
 
   return (
     <header className="sticky top-0 z-50 w-full bg-white border-b border-gray-100 shadow-sm">
@@ -97,12 +59,12 @@ export const Header = () => {
         </div>
       </div>
 
-      <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-4 flex flex-wrap items-center justify-between gap-4">
-        <Link to="/" className="flex items-center shrink-0">
-          <img src={imgLogo} alt="Secret de Nyra" className="h-8 md:h-12 object-contain" />
+      <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-3 lg:py-4 flex items-center justify-between gap-4 lg:flex-wrap">
+        <Link to="/" className="flex shrink-0 items-center">
+          <img src={imgLogo} alt="Secret de Nyra" className="h-9 sm:h-10 lg:h-12 object-contain" />
         </Link>
 
-        <nav className="hidden lg:flex items-center gap-8 font-['Mulish',sans-serif] text-sm font-medium text-black flex-1 justify-center">
+        <nav className="hidden lg:flex flex-1 items-center justify-center gap-8 font-['Mulish',sans-serif] text-sm font-medium text-black">
           <Link to="/shop/category/secret-de-nyra" className="hover:text-[#a4a374] transition-colors">
             Secret de Nyra
           </Link>
@@ -126,20 +88,21 @@ export const Header = () => {
           </Link>
         </nav>
 
-        <div className="flex items-center gap-2 sm:gap-4 text-gray-700 shrink-0">
+        <div className="flex shrink-0 items-center gap-0.5 text-gray-700 sm:gap-1 lg:gap-2">
           <Link
             to={user ? '/account' : '/login'}
-            className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2 hover:bg-gray-50 transition-colors"
+            className="flex p-2 hover:bg-gray-50 rounded-full transition-colors lg:items-center lg:gap-2 lg:py-1 lg:pl-1 lg:pr-2"
             title={user ? 'Mon compte' : 'Connexion'}
             aria-label={user ? `Mon compte (${accountLabel})` : 'Connexion'}
           >
             {user && accountInitials ? (
               <>
-                <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#a4a374] text-[11px] font-bold uppercase text-white shadow-sm ring-2 ring-white">
-                  {accountInitials}
-                  <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-emerald-500" aria-hidden />
+                <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white lg:border-0 lg:bg-[#a4a374] lg:text-[11px] lg:font-bold lg:uppercase lg:text-white lg:shadow-sm lg:ring-2 lg:ring-white">
+                  <User className="h-5 w-5 text-gray-600 lg:hidden" aria-hidden />
+                  <span className="hidden lg:inline">{accountInitials}</span>
+                  <span className="absolute -bottom-0.5 -right-0.5 hidden h-2.5 w-2.5 rounded-full border-2 border-white bg-emerald-500 lg:block" aria-hidden />
                 </span>
-                <span className="hidden max-w-[7rem] truncate text-sm font-medium text-[#1a1a1a] sm:inline md:max-w-[10rem]">
+                <span className="hidden max-w-[10rem] truncate text-sm font-medium text-[#1a1a1a] lg:inline">
                   {accountLabel}
                 </span>
               </>
@@ -149,7 +112,25 @@ export const Header = () => {
               </span>
             )}
           </Link>
-          <Link to="/wishlist" className="relative flex p-2 hover:bg-gray-50 rounded-full transition-colors">
+          <button
+            type="button"
+            className="flex p-2 hover:bg-gray-50 rounded-full transition-colors"
+            aria-label="Rechercher"
+            aria-expanded={searchOpen}
+            onClick={() => setSearchOpen(true)}
+          >
+            <Search className="w-5 h-5" />
+          </button>
+          <button
+            type="button"
+            className="flex p-2 hover:bg-gray-50 rounded-full transition-colors lg:hidden"
+            aria-label={mobileMenuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
+            aria-expanded={mobileMenuOpen}
+            onClick={() => setMobileMenuOpen((prev) => !prev)}
+          >
+            {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
+          <Link to="/wishlist" className="relative hidden p-2 hover:bg-gray-50 rounded-full transition-colors lg:flex">
             <Heart className="w-5 h-5" />
             {wishCount > 0 && (
               <span className="absolute top-0 right-0 bg-[#a4a374] text-white text-[10px] font-bold min-w-[16px] h-4 px-0.5 flex items-center justify-center rounded-full">
@@ -157,7 +138,7 @@ export const Header = () => {
               </span>
             )}
           </Link>
-          <Link to="/cart" className="p-2 hover:bg-gray-50 rounded-full transition-colors relative">
+          <Link to="/cart" className="relative hidden p-2 hover:bg-gray-50 rounded-full transition-colors lg:flex">
             <ShoppingBag className="w-5 h-5" />
             {cartCount > 0 && (
               <span className="absolute top-0 right-0 bg-[#a4a374] text-white text-[10px] font-bold h-4 w-4 flex items-center justify-center rounded-full">
@@ -165,17 +146,10 @@ export const Header = () => {
               </span>
             )}
           </Link>
-          <button
-            type="button"
-            className="lg:hidden flex p-2 hover:bg-gray-50 rounded-full transition-colors"
-            aria-label={mobileMenuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
-            aria-expanded={mobileMenuOpen}
-            onClick={() => setMobileMenuOpen((prev) => !prev)}
-          >
-            {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-          </button>
         </div>
       </div>
+
+      <HeaderSearchPanel open={searchOpen} onClose={() => setSearchOpen(false)} />
 
       {mobileMenuOpen && (
         <div className="lg:hidden border-t border-gray-100 bg-white nyra-menu-enter">
@@ -201,6 +175,26 @@ export const Header = () => {
             <Link to="/shop" className="px-3 py-2 rounded-md hover:bg-gray-50 transition-colors uppercase tracking-wider">
               VOTRE MARQUE
             </Link>
+            <div className="mt-3 flex gap-4 border-t border-gray-100 pt-3">
+              <Link to="/wishlist" className="relative flex items-center gap-2 text-sm font-medium text-[#1a1a1a] hover:text-[#a4a374]">
+                <Heart className="h-5 w-5" />
+                Favoris
+                {wishCount > 0 ? (
+                  <span className="rounded-full bg-[#a4a374] px-1.5 py-0.5 text-[10px] font-bold text-white">
+                    {wishCount > 99 ? '99+' : wishCount}
+                  </span>
+                ) : null}
+              </Link>
+              <Link to="/cart" className="relative flex items-center gap-2 text-sm font-medium text-[#1a1a1a] hover:text-[#a4a374]">
+                <ShoppingBag className="h-5 w-5" />
+                Panier
+                {cartCount > 0 ? (
+                  <span className="rounded-full bg-[#a4a374] px-1.5 py-0.5 text-[10px] font-bold text-white">
+                    {cartCount > 99 ? '99+' : cartCount}
+                  </span>
+                ) : null}
+              </Link>
+            </div>
             {user ? (
               <Link
                 to="/account"
@@ -225,65 +219,6 @@ export const Header = () => {
           </nav>
         </div>
       )}
-
-      <div className="border-t border-gray-50 bg-[#fafafa]">
-        <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-3">
-          <form onSubmit={runSearch} className="flex gap-2 w-full">
-            <div className="relative flex-1" ref={searchWrapRef}>
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-              <input
-                type="search"
-                value={headerQ}
-                onChange={(e) => {
-                  setHeaderQ(e.target.value);
-                  setShowSuggestions(true);
-                }}
-                onFocus={() => setShowSuggestions(true)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Escape') setShowSuggestions(false);
-                }}
-                placeholder="Rechercher un thé, une infusion, un ingrédient…"
-                className="w-full rounded-full border border-gray-200 bg-white py-3 pl-11 pr-4 font-['Mulish',sans-serif] text-sm text-[#1a1a1a] placeholder:text-gray-400 outline-none focus:border-[#a4a374] focus:ring-2 focus:ring-[#a4a374]/20"
-                aria-label="Recherche produits"
-              />
-              {showSuggestions && suggestions.length > 0 && (
-                <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-50 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl">
-                  <ul className="max-h-96 overflow-auto p-2">
-                    {suggestions.map((product) => (
-                      <li key={product.id}>
-                        <Link
-                          to={`/product/${product.slug}`}
-                          className="flex items-center gap-3 rounded-xl px-3 py-2 transition-colors hover:bg-gray-50"
-                          onClick={() => {
-                            setHeaderQ(product.name);
-                            setShowSuggestions(false);
-                          }}
-                        >
-                          <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-white border border-gray-100">
-                            <MediaImage
-                              src={product.image}
-                              alt={product.name}
-                              className="h-full w-full object-cover"
-                              fallbackClassName="h-full w-full rounded-none text-[9px]"
-                            />
-                          </div>
-                          <span className="line-clamp-2 text-sm font-medium text-[#1a1a1a]">{product.name}</span>
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-            <button
-              type="submit"
-              className="shrink-0 rounded-full bg-[#1a1a1a] px-6 py-3 font-['Mulish',sans-serif] text-sm font-semibold text-white hover:bg-[#303030] transition-colors"
-            >
-              Rechercher
-            </button>
-          </form>
-        </div>
-      </div>
     </header>
   );
 };

@@ -1,37 +1,30 @@
+import type { UIProduct } from '../features/catalog/types';
+
 /** Normalise pour recherche insensible aux accents / casse */
 export function normalizeForSearch(text: string): string {
   return text
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\p{Diacritic}/gu, '')
     .toLowerCase()
     .trim();
 }
 
-export function productMatchesQuery(
-  product: {
-    id: string;
-    name: string;
-    ingredients: string;
-    shortDescription?: string | null;
-    description?: string | null;
-    botanicalName?: string | null;
-    origin?: string | null;
-    category: string | { slug: string; name: string };
-    tags?: Array<{ slug: string; name: string }>;
-  },
-  rawQuery: string
-): boolean {
+export function productMatchesQuery(product: UIProduct, rawQuery: string): boolean {
   const q = normalizeForSearch(rawQuery);
   if (!q) return true;
-  const categoryText =
-    typeof product.category === 'string'
-      ? product.category
-      : `${product.category.name} ${product.category.slug}`;
-  const tagsText = (product.tags ?? [])
-    .map((tag) => `${tag.name} ${tag.slug}`)
-    .join(' ');
+
   const haystack = normalizeForSearch(
-    `${product.name} ${product.ingredients} ${product.shortDescription ?? ''} ${product.description ?? ''} ${product.botanicalName ?? ''} ${product.origin ?? ''} ${categoryText} ${tagsText} ${product.id}`
+    [
+      product.name,
+      product.ingredients,
+      product.shortDescription ?? '',
+      product.description ?? '',
+      product.category.name,
+      product.category.slug,
+      ...product.tags.map((t) => t.name),
+      ...product.tags.map((t) => t.slug),
+    ].join(' ')
   );
-  return haystack.includes(q);
+
+  return q.split(/\s+/).filter(Boolean).every((token) => haystack.includes(token));
 }
