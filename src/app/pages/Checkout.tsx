@@ -451,7 +451,7 @@ export const Checkout = () => {
                     <NyraLabel htmlFor="payment-failure">Simulation réponse paiement</NyraLabel>
                     <select
                       id="payment-failure"
-                      className="w-full rounded-[10px] border border-gray-200 px-3 py-2 text-sm"
+                      className="w-full rounded-[10px] border border-gray-200 px-3 py-2 text-base"
                       value={paymentFailure}
                       onChange={(e) => setPaymentFailure(e.target.value as PaymentFailure)}
                     >

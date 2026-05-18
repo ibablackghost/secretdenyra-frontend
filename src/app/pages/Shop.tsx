@@ -289,7 +289,7 @@ export const Shop = () => {
               <select
                 value={sortBy}
                 onChange={(e) => updateQuery({ sort: e.target.value, page: '1' })}
-                className="rounded-lg border border-gray-200 bg-white px-2 py-2 text-sm font-bold text-[#1a1a1a] focus:border-[#a4a374] focus:outline-none font-['Mulish',sans-serif]"
+                className="rounded-lg border border-gray-200 bg-white px-2 py-2 text-base font-bold text-[#1a1a1a] focus:border-[#a4a374] focus:outline-none font-['Mulish',sans-serif]"
               >
                 <option value="popular">Popularité</option>
                 <option value="price-low">Prix croissant</option>
@@ -321,7 +321,7 @@ export const Shop = () => {
               <select
                 value={sortBy}
                 onChange={(e) => updateQuery({ sort: e.target.value, page: '1' })}
-                className="bg-transparent border-none text-sm font-bold text-[#1a1a1a] focus:outline-none cursor-pointer"
+                className="bg-transparent border-none text-base font-bold text-[#1a1a1a] focus:outline-none cursor-pointer"
               >
                 <option value="popular">Popularité</option>
                 <option value="price-low">Prix croissant</option>
