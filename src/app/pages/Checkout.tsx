@@ -11,6 +11,8 @@ import { ErrorState, LoadingState } from '../components/ui/AsyncState';
 import { useOrderStore } from '../store/orderStore';
 import { usePurchasedProductsStore } from '../store/purchasedProductsStore';
 import { useAuthStore } from '../store/authStore';
+import { useHerboristeriePriceAccess } from '../hooks/useHerboristeriePriceAccess';
+import { ProfessionalPriceHint } from '../components/catalog/ProfessionalPriceHint';
 import { unitPriceForLine } from '../features/catalog/productUtils';
 import { ApiError } from '../services/api/apiError';
 import { confirmCheckout, initCheckout } from '../services/api/commerceApi';
@@ -48,6 +50,7 @@ export const Checkout = () => {
   const hydrateOrders = useOrderStore((s) => s.hydrateFromServer);
   const hydratePurchasedProducts = usePurchasedProductsStore((s) => s.hydrateFromServer);
   const token = useAuthStore((s) => s.token);
+  const { shouldHidePrice, canPurchaseProduct } = useHerboristeriePriceAccess();
   const { products, loading, error } = useCatalog();
 
   const {
@@ -78,9 +81,18 @@ export const Checkout = () => {
     [cartItems, products]
   );
 
+  const hasLockedHerboristerie = useMemo(
+    () => cartProducts.some((item) => shouldHidePrice(item)),
+    [cartProducts, shouldHidePrice]
+  );
+  const purchasableLines = useMemo(
+    () => cartProducts.filter((item) => canPurchaseProduct(item)),
+    [cartProducts, canPurchaseProduct]
+  );
+
   const subtotal = useMemo(
-    () => cartProducts.reduce((acc, item) => acc + item.unitPrice * item.quantity, 0),
-    [cartProducts]
+    () => purchasableLines.reduce((acc, item) => acc + item.unitPrice * item.quantity, 0),
+    [purchasableLines]
   );
   const shippingFee = subtotal > 45000 || subtotal === 0 ? 0 : 2500;
   const total = subtotal + shippingFee;
@@ -395,11 +407,14 @@ export const Checkout = () => {
               <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
                 <section className="rounded-[14px] border border-gray-100 p-4 md:p-6">
                   <h2 className="mb-4 text-lg font-semibold">Récapitulatif commande</h2>
+                  {hasLockedHerboristerie ? <ProfessionalPriceHint className="mb-4" /> : null}
                   {cartProducts.length === 0 ? (
                     <p className="text-sm text-gray-500">Panier vide. Retournez au panier pour ajouter des articles.</p>
                   ) : (
                     <div className="space-y-3">
-                      {cartProducts.map((item) => (
+                      {cartProducts.map((item) => {
+                        const hideLinePrice = shouldHidePrice(item);
+                        return (
                         <div
                           key={`${item.storeProductId}-${item.variantId ?? ''}`}
                           className="flex items-center justify-between rounded-[10px] bg-gray-50 px-3 py-2 text-sm"
@@ -409,9 +424,14 @@ export const Checkout = () => {
                             {item.variantId ? ` (${item.variants.find((v) => v.id === item.variantId)?.label ?? ''})` : ''}{' '}
                             x{item.quantity}
                           </span>
-                          <span className="font-semibold">{formatPrice(item.unitPrice * item.quantity)}</span>
+                          {hideLinePrice ? (
+                            <span className="text-xs font-semibold text-[#7d755f]">Prix pro</span>
+                          ) : (
+                            <span className="font-semibold">{formatPrice(item.unitPrice * item.quantity)}</span>
+                          )}
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                   <div className="mt-5 space-y-2 border-t border-gray-100 pt-4 text-sm">

@@ -15,6 +15,8 @@ import { getDefaultVariant, stockForLine } from '../features/catalog/productUtil
 import { useViewedProductsStore } from '../store/viewedProductsStore';
 import { useSeo } from '../hooks/useSeo';
 import { trackAddToCart, trackViewProduct } from '../services/analytics/tracking';
+import { useHerboristeriePriceAccess } from '../hooks/useHerboristeriePriceAccess';
+import { ProfessionalPriceHint } from '../components/catalog/ProfessionalPriceHint';
 
 export const Product = () => {
   const { slug } = useParams();
@@ -31,6 +33,7 @@ export const Product = () => {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [selectedVariant, setSelectedVariant] = useState<UIProductVariant | null>(null);
   const { success, info } = useToast();
+  const { shouldHidePrice, canPurchaseProduct } = useHerboristeriePriceAccess();
   const pushViewed = useViewedProductsStore((s) => s.push);
 
   const seoTitle = product?.metaTitle?.trim() || product?.name || 'Produit';
@@ -117,8 +120,15 @@ export const Product = () => {
         product.origin)
   );
 
+  const hidePrice = product ? shouldHidePrice(product) : false;
+  const canPurchase = product ? canPurchaseProduct(product) : false;
+
   const handleAdd = () => {
     if (!product || !isInStock) return;
+    if (!canPurchase) {
+      info('Les articles herboristerie sont réservés aux comptes professionnels.');
+      return;
+    }
     const variantId = product.variants.length > 0 ? resolvedVariant?.id : undefined;
     if (product.variants.length > 0 && !variantId) return;
     void addItem(product.id, { variantId, quantity });
@@ -129,6 +139,10 @@ export const Product = () => {
   };
 
   const handleAddToCart = (item: UIProduct) => {
+    if (!canPurchaseProduct(item)) {
+      info('Les articles herboristerie sont réservés aux comptes professionnels.');
+      return;
+    }
     const def = getDefaultVariant(item);
     void addItem(item.id, { variantId: def?.id, quantity: 1 });
     trackAddToCart({ ...item, price: def?.price ?? item.price }, 1);
@@ -242,16 +256,22 @@ export const Product = () => {
             </div>
           </div>
 
-          <div className="text-3xl font-bold text-[#1a1a1a] mb-2">
-            {formatPrice(effectivePrice)}
-            {effectiveCompareAt && effectiveCompareAt > effectivePrice ? (
-              <span className="ml-3 text-lg font-medium text-gray-400 line-through">{formatPrice(effectiveCompareAt)}</span>
-            ) : null}
-          </div>
-          {product.variants.length > 1 ? (
-            <p className="mb-6 text-sm text-gray-500">Prix selon le format sélectionné.</p>
+          {hidePrice ? (
+            <ProfessionalPriceHint className="mb-6" />
           ) : (
-            <div className="mb-6" />
+            <>
+              <div className="text-3xl font-bold text-[#1a1a1a] mb-2">
+                {formatPrice(effectivePrice)}
+                {effectiveCompareAt && effectiveCompareAt > effectivePrice ? (
+                  <span className="ml-3 text-lg font-medium text-gray-400 line-through">{formatPrice(effectiveCompareAt)}</span>
+                ) : null}
+              </div>
+              {product.variants.length > 1 ? (
+                <p className="mb-6 text-sm text-gray-500">Prix selon le format sélectionné.</p>
+              ) : (
+                <div className="mb-6" />
+              )}
+            </>
           )}
 
           {descriptionBlocks[0] ? (
@@ -282,7 +302,7 @@ export const Product = () => {
                       }`}
                     >
                       <div className="font-medium">{label}</div>
-                      <div className="text-xs text-gray-600">{formatPrice(vPrice)}</div>
+                      {!hidePrice ? <div className="text-xs text-gray-600">{formatPrice(vPrice)}</div> : null}
                     </button>
                   );
                 })}
@@ -337,7 +357,7 @@ export const Product = () => {
             <button
               type="button"
               onClick={handleAdd}
-              disabled={!isInStock || (product.variants.length > 0 && !resolvedVariant)}
+              disabled={!isInStock || !canPurchase || (product.variants.length > 0 && !resolvedVariant)}
               className={`flex-1 h-[52px] rounded-[8px] font-bold text-base flex items-center justify-center gap-2 transition-all ${
                 added
                   ? 'bg-green-600 text-white'

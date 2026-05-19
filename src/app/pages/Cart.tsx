@@ -14,6 +14,8 @@ import {
 } from '../services/analytics/tracking';
 import { unitPriceForLine, resolveVariant } from '../features/catalog/productUtils';
 import type { UIProduct } from '../features/catalog/types';
+import { useHerboristeriePriceAccess } from '../hooks/useHerboristeriePriceAccess';
+import { ProfessionalPriceHint } from '../components/catalog/ProfessionalPriceHint';
 
 type CartLineProduct = UIProduct & {
   lineKey: string;
@@ -27,7 +29,8 @@ type CartLineProduct = UIProduct & {
 export const Cart = () => {
   const { items, removeItem, updateQuantity } = useCartStore();
   const { products, loading, error } = useCatalog();
-  const { success, info } = useToast();
+  const { success, info, error: toastError } = useToast();
+  const { shouldHidePrice, canPurchaseProduct } = useHerboristeriePriceAccess();
   const navigate = useNavigate();
   const checkoutStartedRef = useRef(false);
 
@@ -64,7 +67,17 @@ export const Cart = () => {
     [cartProducts]
   );
 
-  const subtotal = cartProducts.reduce((acc, item) => acc + item.unitPrice * item.quantity, 0);
+  const lockedHerboristerieLines = useMemo(
+    () => cartProducts.filter((item) => shouldHidePrice(item)),
+    [cartProducts, shouldHidePrice]
+  );
+  const purchasableLines = useMemo(
+    () => cartProducts.filter((item) => canPurchaseProduct(item)),
+    [cartProducts, canPurchaseProduct]
+  );
+  const hasLockedHerboristerie = lockedHerboristerieLines.length > 0;
+
+  const subtotal = purchasableLines.reduce((acc, item) => acc + item.unitPrice * item.quantity, 0);
   const shipping = subtotal > 45000 || subtotal === 0 ? 0 : 2500;
   const total = subtotal + shipping;
 
@@ -90,6 +103,14 @@ export const Cart = () => {
   };
 
   const handleCheckout = () => {
+    if (hasLockedHerboristerie) {
+      toastError('Retirez les articles herboristerie ou demandez un compte professionnel pour commander.');
+      return;
+    }
+    if (purchasableLines.length === 0) {
+      toastError('Aucun article commandable dans votre panier.');
+      return;
+    }
     checkoutStartedRef.current = true;
     trackBeginCheckout(trackedItems, total);
     success('Passage au checkout.');
@@ -137,9 +158,15 @@ export const Cart = () => {
     <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-12 md:py-20">
       <h1 className="text-3xl md:text-4xl font-bold text-[#1a1a1a] mb-12">Votre panier</h1>
 
+      {hasLockedHerboristerie ? (
+        <ProfessionalPriceHint className="mb-8" />
+      ) : null}
+
       <div className="flex flex-col lg:flex-row gap-12">
         <div className="flex-1 flex flex-col gap-6">
-          {cartProducts.map((item) => (
+          {cartProducts.map((item) => {
+            const hideLinePrice = shouldHidePrice(item);
+            return (
             <div key={item.lineKey} className="flex flex-col sm:flex-row items-start sm:items-center gap-6 p-4 rounded-[16px] border border-gray-100 bg-white">
               <div className="w-24 h-24 shrink-0 rounded-[12px] bg-white p-2 flex items-center justify-center border border-gray-100">
                 <img src={item.image} alt={item.name} className="w-full h-full object-contain" />
@@ -153,7 +180,11 @@ export const Cart = () => {
                   </p>
                 ) : null}
                 <p className="text-sm text-gray-500">{item.shortDescription?.trim() || item.ingredients}</p>
-                <div className="font-bold text-[#1a1a1a] mt-2 sm:hidden">{formatPrice(item.unitPrice)}</div>
+                {hideLinePrice ? (
+                  <p className="mt-2 text-xs font-semibold text-[#7d755f] sm:hidden">Prix réservé aux professionnels</p>
+                ) : (
+                  <div className="font-bold text-[#1a1a1a] mt-2 sm:hidden">{formatPrice(item.unitPrice)}</div>
+                )}
               </div>
 
               <div className="flex items-center gap-6 w-full sm:w-auto justify-between sm:justify-end mt-4 sm:mt-0">
@@ -177,14 +208,19 @@ export const Cart = () => {
                   </button>
                 </div>
 
-                <div className="hidden sm:block font-bold text-lg w-28 text-right">{formatPrice(item.unitPrice * item.quantity)}</div>
+                {hideLinePrice ? (
+                  <p className="hidden w-28 text-right text-xs font-semibold text-[#7d755f] sm:block">Prix pro</p>
+                ) : (
+                  <div className="hidden sm:block font-bold text-lg w-28 text-right">{formatPrice(item.unitPrice * item.quantity)}</div>
+                )}
 
                 <button type="button" onClick={() => handleRemove(item.lineKey, item.name)} className="p-2 text-gray-400 hover:text-red-500 transition-colors">
                   <Trash2 className="w-5 h-5" />
                 </button>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
 
         <div className="w-full lg:w-[400px] shrink-0">
@@ -213,7 +249,8 @@ export const Cart = () => {
             <button
               type="button"
               onClick={handleCheckout}
-              className="w-full h-14 bg-[#1a1a1a] text-white rounded-full font-bold flex items-center justify-center gap-2 hover:bg-[#333] transition-colors mt-4"
+              disabled={hasLockedHerboristerie || purchasableLines.length === 0}
+              className="w-full h-14 bg-[#1a1a1a] text-white rounded-full font-bold flex items-center justify-center gap-2 hover:bg-[#333] transition-colors mt-4 disabled:cursor-not-allowed disabled:opacity-50"
             >
               Passer à la caisse <ArrowRight className="w-5 h-5" />
             </button>

@@ -24,6 +24,21 @@ export type StrapiAuthResponse = {
   user: StrapiAuthUser;
 };
 
+export type AccountType = 'classic' | 'professional';
+
+export type ProAccountRequestStatus = 'pending' | 'approved' | 'rejected';
+
+export type ProAccountRequest = {
+  id: string;
+  companyName: string;
+  siret?: string | null;
+  companyPhone?: string | null;
+  message?: string | null;
+  status: ProAccountRequestStatus;
+  createdAt?: string;
+  adminNote?: string | null;
+};
+
 export type MeProfile = {
   id?: number;
   username: string;
@@ -31,6 +46,17 @@ export type MeProfile = {
   firstName?: string;
   lastName?: string;
   phone?: string;
+  accountType?: AccountType;
+  isProfessional?: boolean;
+  proApprovedAt?: string | null;
+  proAccountRequest?: ProAccountRequest | null;
+};
+
+export type SubmitProAccountRequestInput = {
+  companyName: string;
+  siret?: string;
+  companyPhone?: string;
+  message?: string;
 };
 
 export async function login(identifier: string, password: string) {
@@ -57,6 +83,21 @@ export async function getMe(token: string) {
 export async function updateMe(token: string, input: { firstName?: string; lastName?: string; phone?: string }) {
   return requestJson<MeProfile>(url('/api/me'), {
     method: 'PATCH',
+    headers: { Authorization: `Bearer ${token}` },
+    body: input,
+  });
+}
+
+export async function getProAccountRequest(token: string) {
+  return requestJson<{ request: ProAccountRequest | null } | ProAccountRequest | null>(url('/api/me/pro-account-request'), {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export async function submitProAccountRequest(token: string, input: SubmitProAccountRequestInput) {
+  return requestJson<ProAccountRequest>(url('/api/me/pro-account-request'), {
+    method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
     body: input,
   });

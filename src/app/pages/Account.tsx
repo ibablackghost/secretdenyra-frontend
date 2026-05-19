@@ -11,7 +11,8 @@ import { formatPrice } from '../lib/price';
 import { useToast } from '../hooks/useToast';
 import { MediaImage } from '../components/ui/MediaImage';
 import { usePurchasedProductsStore } from '../store/purchasedProductsStore';
-import { Eye, Heart, LogOut, MapPinHouse, Package, Sparkles, UserRound, Wallet } from 'lucide-react';
+import { Building2, Eye, Heart, LogOut, MapPinHouse, Package, Sparkles, UserRound, Wallet } from 'lucide-react';
+import { ProAccountSection } from '../features/account/components/ProAccountSection';
 
 export const Account = () => {
   const user = useAuthStore((s) => s.user);
@@ -152,7 +153,15 @@ export const Account = () => {
               </div>
               <div>
                 <p className="inline-flex items-center gap-1 rounded-full bg-white/80 px-3 py-1 text-xs font-semibold text-[#6d6b60]">
-                  <Sparkles className="h-3.5 w-3.5" /> Espace personnel
+                  {user.isProfessional ? (
+                    <>
+                      <Building2 className="h-3.5 w-3.5" /> Compte professionnel
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-3.5 w-3.5" /> Espace personnel
+                    </>
+                  )}
                 </p>
                 <h1 className="mt-2 font-['Mulish',sans-serif] text-2xl font-extrabold text-[#1a1a1a] md:text-3xl">
                   Bonjour, {user.firstName}
@@ -314,6 +323,10 @@ export const Account = () => {
               ))}
             </div>
           </section>
+        </div>
+
+        <div className="mt-6">
+          <ProAccountSection />
         </div>
 
         <section className={`${sectionClass} mt-6`}>

@@ -5,6 +5,9 @@ import type { UIProduct } from '../types';
 import { formatPrice } from '@/app/lib/price';
 import { getCatalogListPrice } from '../productUtils';
 import { MediaImage } from '@/app/components/ui/MediaImage';
+import { useHerboristeriePriceAccess } from '@/app/hooks/useHerboristeriePriceAccess';
+import { ProfessionalPriceHint } from '@/app/components/catalog/ProfessionalPriceHint';
+import { useToast } from '@/app/hooks/useToast';
 
 type ProductCardProps = {
   product: UIProduct;
@@ -14,6 +17,10 @@ type ProductCardProps = {
 };
 
 function ProductCardBase({ product, wished, onToggleWishlist, onAddToCart }: ProductCardProps) {
+  const { shouldHidePrice, canPurchaseProduct } = useHerboristeriePriceAccess();
+  const { info } = useToast();
+  const hidePrice = shouldHidePrice(product);
+  const canPurchase = canPurchaseProduct(product);
   const hasVariants = (product.variants?.length ?? 0) > 0;
   const listPrice = getCatalogListPrice(product);
   const hasPromo = Boolean(product.compareAtPrice && product.compareAtPrice > listPrice);
@@ -78,23 +85,37 @@ function ProductCardBase({ product, wished, onToggleWishlist, onAddToCart }: Pro
         </Link>
         <div className="mt-2 flex items-center justify-between gap-2">
           <div className="flex min-w-0 flex-col gap-0.5">
-            {hasVariants ? (
-              <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">À partir de</span>
-            ) : null}
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="font-bold text-[#303030]">{formatPrice(listPrice)}</span>
-              {hasPromo ? <span className="text-xs text-gray-400 line-through">{formatPrice(product.compareAtPrice!)}</span> : null}
-            </div>
-            {hasVariants && typeof product.stockQty === 'number' ? (
-              <span className="text-[10px] text-gray-500">Stock indicatif : {product.stockQty}</span>
-            ) : null}
+            {hidePrice ? (
+              <ProfessionalPriceHint compact />
+            ) : (
+              <>
+                {hasVariants ? (
+                  <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">À partir de</span>
+                ) : null}
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-bold text-[#303030]">{formatPrice(listPrice)}</span>
+                  {hasPromo ? (
+                    <span className="text-xs text-gray-400 line-through">{formatPrice(product.compareAtPrice!)}</span>
+                  ) : null}
+                </div>
+                {hasVariants && typeof product.stockQty === 'number' ? (
+                  <span className="text-[10px] text-gray-500">Stock indicatif : {product.stockQty}</span>
+                ) : null}
+              </>
+            )}
           </div>
           <button
             type="button"
-            onClick={() => onAddToCart(product)}
-            className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full bg-[#1a1a1a] transition-colors hover:bg-[#a4a374]"
+            onClick={() => {
+              if (!canPurchase) {
+                info('Les articles herboristerie sont réservés aux comptes professionnels.');
+                return;
+              }
+              onAddToCart(product);
+            }}
+            className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full bg-[#1a1a1a] transition-colors hover:bg-[#a4a374] disabled:cursor-not-allowed disabled:opacity-40"
             aria-label="Add to cart"
-            disabled={isOutOfStock}
+            disabled={isOutOfStock || !canPurchase}
           >
             <svg width="12" height="12" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M8 1V15M1 8H15" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />

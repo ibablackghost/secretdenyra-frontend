@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { ApiError } from '../services/api/apiError';
 import * as authApi from '../services/api/authApi';
+import type { AccountType, ProAccountRequest, SubmitProAccountRequestInput } from '../services/api/authApi';
 
 export interface AuthUser {
   id: number;
@@ -10,6 +11,10 @@ export interface AuthUser {
   firstName: string;
   lastName: string;
   phone: string;
+  accountType: AccountType;
+  isProfessional: boolean;
+  proApprovedAt: string | null;
+  proAccountRequest: ProAccountRequest | null;
 }
 
 interface AuthStore {
@@ -26,7 +31,8 @@ interface AuthStore {
   }) => Promise<void>;
   loadMe: () => Promise<void>;
   logout: () => void;
-  updateProfile: (partial: Partial<Omit<AuthUser, 'id' | 'username' | 'email'>>) => Promise<void>;
+  updateProfile: (partial: Partial<Omit<AuthUser, 'id' | 'username' | 'email' | 'accountType' | 'isProfessional' | 'proApprovedAt' | 'proAccountRequest'>>) => Promise<void>;
+  submitProAccountRequest: (input: SubmitProAccountRequestInput) => Promise<void>;
 }
 
 function normalizeMessage(error: unknown): string {
@@ -40,7 +46,9 @@ function normalizeMessage(error: unknown): string {
   return 'Une erreur est survenue.';
 }
 
-function toAuthUser(authUser: authApi.StrapiAuthUser, profile?: authApi.MeProfile): AuthUser {
+function profileToAuthUser(authUser: authApi.StrapiAuthUser, profile?: authApi.MeProfile): AuthUser {
+  const accountType = profile?.accountType ?? 'classic';
+  const isProfessional = profile?.isProfessional ?? accountType === 'professional';
   return {
     id: authUser.id,
     username: profile?.username ?? authUser.username,
@@ -48,6 +56,45 @@ function toAuthUser(authUser: authApi.StrapiAuthUser, profile?: authApi.MeProfil
     firstName: profile?.firstName ?? '',
     lastName: profile?.lastName ?? '',
     phone: profile?.phone ?? '',
+    accountType: isProfessional ? 'professional' : accountType,
+    isProfessional,
+    proApprovedAt: profile?.proApprovedAt ?? null,
+    proAccountRequest: profile?.proAccountRequest ?? null,
+  };
+}
+
+function profileToAuthUserFromMeOnly(profile: authApi.MeProfile): AuthUser {
+  const accountType = profile.accountType ?? 'classic';
+  const isProfessional = profile.isProfessional ?? accountType === 'professional';
+  return {
+    id: profile.id ?? 0,
+    username: profile.username,
+    email: profile.email,
+    firstName: profile.firstName ?? '',
+    lastName: profile.lastName ?? '',
+    phone: profile.phone ?? '',
+    accountType: isProfessional ? 'professional' : accountType,
+    isProfessional,
+    proApprovedAt: profile.proApprovedAt ?? null,
+    proAccountRequest: profile.proAccountRequest ?? null,
+  };
+}
+
+function mergeProfileIntoUser(current: AuthUser, profile: authApi.MeProfile): AuthUser {
+  const accountType = profile.accountType ?? current.accountType;
+  const isProfessional = profile.isProfessional ?? accountType === 'professional';
+  return {
+    ...current,
+    username: profile.username ?? current.username,
+    email: profile.email ?? current.email,
+    firstName: profile.firstName ?? current.firstName,
+    lastName: profile.lastName ?? current.lastName,
+    phone: profile.phone ?? current.phone,
+    accountType: isProfessional ? 'professional' : accountType,
+    isProfessional,
+    proApprovedAt: profile.proApprovedAt !== undefined ? profile.proApprovedAt : current.proApprovedAt,
+    proAccountRequest:
+      profile.proAccountRequest !== undefined ? profile.proAccountRequest : current.proAccountRequest,
   };
 }
 
@@ -64,7 +111,7 @@ export const useAuthStore = create<AuthStore>()(
           const profile = await authApi.getMe(auth.jwt);
           set({
             token: auth.jwt,
-            user: toAuthUser(auth.user, profile),
+            user: profileToAuthUser(auth.user, profile),
             isAuthenticated: true,
             isLoadingMe: false,
           });
@@ -86,7 +133,7 @@ export const useAuthStore = create<AuthStore>()(
           });
           set({
             token: auth.jwt,
-            user: toAuthUser(auth.user, profile),
+            user: profileToAuthUser(auth.user, profile),
             isAuthenticated: true,
             isLoadingMe: false,
           });
@@ -103,28 +150,14 @@ export const useAuthStore = create<AuthStore>()(
           const current = get().user;
           if (!current) {
             set({
-              user: {
-                id: profile.id ?? 0,
-                username: profile.username,
-                email: profile.email,
-                firstName: profile.firstName ?? '',
-                lastName: profile.lastName ?? '',
-                phone: profile.phone ?? '',
-              },
+              user: profileToAuthUserFromMeOnly(profile),
               isAuthenticated: true,
               isLoadingMe: false,
             });
             return;
           }
           set({
-            user: {
-              ...current,
-              username: profile.username ?? current.username,
-              email: profile.email ?? current.email,
-              firstName: profile.firstName ?? current.firstName,
-              lastName: profile.lastName ?? current.lastName,
-              phone: profile.phone ?? current.phone,
-            },
+            user: mergeProfileIntoUser(current, profile),
             isAuthenticated: true,
             isLoadingMe: false,
           });
@@ -144,17 +177,20 @@ export const useAuthStore = create<AuthStore>()(
         if (!token || !user) return;
         try {
           const profile = await authApi.updateMe(token, partial);
-          set({
-            user: {
-              ...user,
-              firstName: profile.firstName ?? user.firstName,
-              lastName: profile.lastName ?? user.lastName,
-              phone: profile.phone ?? user.phone,
-            },
-          });
+          set({ user: mergeProfileIntoUser(user, profile) });
         } catch (error) {
           throw new Error(normalizeMessage(error));
         }
+      },
+      submitProAccountRequest: async (input) => {
+        const token = get().token;
+        const user = get().user;
+        if (!token || !user) {
+          throw new Error('Connectez-vous pour envoyer une demande.');
+        }
+        await authApi.submitProAccountRequest(token, input);
+        const profile = await authApi.getMe(token);
+        set({ user: mergeProfileIntoUser(user, profile) });
       },
     }),
     { name: 'nyra-auth' }

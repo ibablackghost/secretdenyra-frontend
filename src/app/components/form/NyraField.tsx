@@ -1,4 +1,4 @@
-import type { InputHTMLAttributes, ReactNode } from 'react';
+import type { InputHTMLAttributes, ReactNode, TextareaHTMLAttributes } from 'react';
 
 const fieldClass =
   'w-full rounded-[10px] border border-gray-200 bg-white px-4 py-3 font-["Mulish",sans-serif] text-base text-[#1a1a1a] placeholder:text-gray-400 outline-none transition-shadow focus:border-[#a4a374] focus:ring-2 focus:ring-[#a4a374]/25';
@@ -16,6 +16,10 @@ export function NyraLabel({ children, htmlFor }: { children: ReactNode; htmlFor?
 
 export function NyraInput(props: InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} className={`${fieldClass} ${props.className ?? ''}`} />;
+}
+
+export function NyraTextarea(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return <textarea {...props} className={`${fieldClass} resize-y min-h-[6rem] ${props.className ?? ''}`} />;
 }
 
 export function NyraFormError({ message }: { message?: string }) {
