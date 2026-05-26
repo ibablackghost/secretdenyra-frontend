@@ -8,6 +8,7 @@ const Shop = lazy(() => import('./pages/Shop').then((m) => ({ default: m.Shop })
 const Product = lazy(() => import('./pages/Product').then((m) => ({ default: m.Product })));
 const Cart = lazy(() => import('./pages/Cart').then((m) => ({ default: m.Cart })));
 const Checkout = lazy(() => import('./pages/Checkout').then((m) => ({ default: m.Checkout })));
+const PaymentReturn = lazy(() => import('./pages/PaymentReturn').then((m) => ({ default: m.PaymentReturn })));
 const Login = lazy(() => import('./pages/Login').then((m) => ({ default: m.Login })));
 const Register = lazy(() => import('./pages/Register').then((m) => ({ default: m.Register })));
 const Account = lazy(() => import('./pages/Account').then((m) => ({ default: m.Account })));
@@ -47,6 +48,7 @@ const ShopRoute = withSuspense(Shop);
 const ProductRoute = withSuspense(Product);
 const CartRoute = withSuspense(Cart);
 const CheckoutRoute = withSuspense(Checkout);
+const PaymentReturnRoute = withSuspense(PaymentReturn);
 const LoginRoute = withSuspense(Login);
 const RegisterRoute = withSuspense(Register);
 const WishlistRoute = withSuspense(Wishlist);
@@ -72,6 +74,7 @@ export const router = createBrowserRouter([
       { path: 'product/:slug', Component: ProductRoute },
       { path: 'cart', Component: CartRoute },
       { path: 'checkout', Component: CheckoutRoute },
+      { path: 'checkout/payment/return', Component: PaymentReturnRoute },
       { path: 'login', Component: LoginRoute },
       { path: 'register', Component: RegisterRoute },
       { path: 'wishlist', Component: WishlistRoute },

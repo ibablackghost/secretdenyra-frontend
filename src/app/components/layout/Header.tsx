@@ -5,6 +5,8 @@ import { useCartStore } from '../../store/cartStore';
 import { useAuthStore } from '../../store/authStore';
 import { useWishlistStore } from '../../store/wishlistStore';
 import { HeaderSearchPanel } from './HeaderSearchPanel';
+import { PendingPaymentsHeaderHint } from '../../features/account/components/PendingPaymentsBanner';
+import { selectAwaitingPayments, usePendingPaymentsStore } from '../../store/pendingPaymentsStore';
 import imgLogo from 'figma:asset/04c30533fe5a9a60b6e7341851231c595d46cb74.png';
 
 export const Header = () => {
@@ -13,6 +15,9 @@ export const Header = () => {
   const cartCount = cartItems.reduce((acc, item) => acc + item.quantity, 0);
   const user = useAuthStore((s) => s.user);
   const wishCount = useWishlistStore((s) => s.count);
+  const pendingPaymentItems = usePendingPaymentsStore((s) => s.items);
+  const hydratePendingPayments = usePendingPaymentsStore((s) => s.hydrateFromServer);
+  const pendingPaymentsCount = selectAwaitingPayments(pendingPaymentItems).length;
 
   const { accountLabel, accountInitials } = useMemo(() => {
     if (!user) return { accountLabel: null as string | null, accountInitials: null as string | null };
@@ -35,15 +40,23 @@ export const Header = () => {
     setSearchOpen(false);
   }, [location.pathname, location.search]);
 
+  useEffect(() => {
+    if (!user) return;
+    void hydratePendingPayments();
+  }, [user, hydratePendingPayments]);
+
   return (
     <header className="sticky top-0 z-50 w-full bg-white border-b border-gray-100 shadow-sm">
       <div className="bg-[#333] text-white text-xs font-medium py-2 px-4 flex justify-between items-center">
         <div className="hidden md:flex gap-4 items-center text-white/90">
           {user ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-0.5 text-[11px] font-medium">
-              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400" aria-hidden />
-              Connecté
-            </span>
+            <>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-0.5 text-[11px] font-medium">
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400" aria-hidden />
+                Connecté
+              </span>
+              <PendingPaymentsHeaderHint count={pendingPaymentsCount} />
+            </>
           ) : null}
         </div>
         <div className="text-center w-full md:w-auto">

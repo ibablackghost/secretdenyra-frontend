@@ -13,6 +13,9 @@ import { MediaImage } from '../components/ui/MediaImage';
 import { usePurchasedProductsStore } from '../store/purchasedProductsStore';
 import { Building2, Eye, Heart, LogOut, MapPinHouse, Package, Sparkles, UserRound, Wallet } from 'lucide-react';
 import { ProAccountSection } from '../features/account/components/ProAccountSection';
+import { PendingPaymentsBanner } from '../features/account/components/PendingPaymentsBanner';
+import { PendingPaymentsSection } from '../features/account/components/PendingPaymentsSection';
+import { usePendingPayments } from '../hooks/usePendingPayments';
 
 export const Account = () => {
   const user = useAuthStore((s) => s.user);
@@ -50,6 +53,7 @@ export const Account = () => {
   const viewedIds = useViewedProductsStore((s) => s.ids);
   const purchasedItems = usePurchasedProductsStore((s) => s.items);
   const { products } = useCatalog();
+  const { count: pendingPaymentsCount } = usePendingPayments();
 
   useEffect(() => {
     if (!user) return;
@@ -57,6 +61,12 @@ export const Account = () => {
     setLastName(user.lastName);
     setPhone(user.phone);
   }, [user]);
+
+  useEffect(() => {
+    if (window.location.hash !== '#paiements-en-attente') return;
+    const el = document.getElementById('paiements-en-attente');
+    el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [pendingPaymentsCount]);
 
   if (!user) return null;
 
@@ -174,6 +184,8 @@ export const Account = () => {
             </NyraButton>
           </div>
         </section>
+
+        <PendingPaymentsBanner count={pendingPaymentsCount} />
 
         <section className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
           <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
@@ -329,6 +341,8 @@ export const Account = () => {
           <ProAccountSection />
         </div>
 
+        <PendingPaymentsSection />
+
         <section className={`${sectionClass} mt-6`}>
           <h2 className="text-lg font-bold text-[#1a1a1a]">Historique commandes</h2>
           {orders.length === 0 ? (
@@ -350,7 +364,9 @@ export const Account = () => {
                     </div>
                     <div className="text-right">
                       <p className="font-bold">{formatPrice(order.total)}</p>
-                      <p className="text-xs uppercase tracking-wide text-gray-500">{order.status}</p>
+                      <p className="text-xs uppercase tracking-wide text-gray-500">
+                        {order.status === 'pending' ? 'En attente de paiement' : order.status}
+                      </p>
                     </div>
                   </button>
                   {expandedOrderId === order.id ? (

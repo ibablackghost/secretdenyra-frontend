@@ -7,9 +7,15 @@
 | Méthode | Route |
 |--------|--------|
 | `POST` | `/api/checkout/init` |
+| `POST` | `/api/checkout/:checkoutId/payment/paytech` |
 | `POST` | `/api/checkout/:checkoutId/confirm` |
+| `GET` | `/api/payments/:paymentId/status` |
+| `GET` | `/api/me/payments/pending` |
+| `POST` | `/api/webhooks/paytech/ipn` |
 
-**Auth** : `Authorization: Bearer <jwt>` sur les deux.
+**Auth** :
+- Utilisateur connecté : `Authorization: Bearer <jwt>`
+- Invité : pas de JWT ; `POST /api/checkout/init` renvoie `guestToken` → header `X-Checkout-Token` sur payment/status/confirm
 
 ## Init — body (résumé)
 
@@ -17,11 +23,11 @@
 
 ## Init — réponse minimum
 
-Au moins : `checkout_session_id` **ou** `checkoutId` (string utilisée dans l’URL `confirm`).
+Au moins : `checkout_session_id` **ou** `checkoutId` ; pour invité : **`guestToken`** aussi.
 
 ## Confirm — body
 
-`{ "paymentMethod": "card" | "mobile-money" | "cash-on-delivery", "paymentIntentId?": "..." }`
+`{ "paymentMethod": "paytech" }` — après IPN PayTech `sale_complete`.
 
 ## Confirm — réponse minimum
 

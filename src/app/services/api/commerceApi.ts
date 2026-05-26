@@ -1,4 +1,6 @@
 import { requestJson } from './httpClient';
+import type { CheckoutAccess } from '../../lib/checkoutAccess';
+import { checkoutRequestHeaders } from '../../lib/checkoutAccess';
 
 const STRAPI_URL = import.meta.env.VITE_STRAPI_URL;
 
@@ -315,22 +317,29 @@ export async function pushViewedProduct(token: string, productId: string) {
   });
 }
 
-export async function initCheckout(token: string, input: CheckoutInitInput) {
-  return requestJson<{ checkoutId?: string; checkout_session_id?: string }>(url('/api/checkout/init'), {
+export type CheckoutInitResponse = {
+  checkoutId?: string;
+  checkout_session_id?: string;
+  /** Jeton pour les appels checkout invité (header X-Checkout-Token) */
+  guestToken?: string;
+};
+
+export async function initCheckout(input: CheckoutInitInput, access: CheckoutAccess = {}) {
+  return requestJson<CheckoutInitResponse>(url('/api/checkout/init'), {
     method: 'POST',
-    headers: authHeaders(token),
+    headers: checkoutRequestHeaders(access),
     body: input,
   });
 }
 
 export async function confirmCheckout(
-  token: string,
   checkoutId: string,
-  input: { paymentMethod: string; paymentIntentId?: string }
+  input: { paymentMethod: string; paymentIntentId?: string },
+  access: CheckoutAccess = {}
 ) {
   return requestJson<{ order?: { id?: string }; orderId?: string }>(url(`/api/checkout/${checkoutId}/confirm`), {
     method: 'POST',
-    headers: authHeaders(token),
+    headers: checkoutRequestHeaders(access),
     body: input,
   });
 }
