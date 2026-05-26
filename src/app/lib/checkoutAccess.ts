@@ -39,10 +39,17 @@ export function clearCheckoutSessionKeys() {
   sessionStorage.removeItem(CHECKOUT_ID_KEY);
 }
 
+/** Init checkout : JWT optionnel uniquement (pas de X-Checkout-Token — voir frontend-checkout-api.md). */
+export function initCheckoutRequestHeaders(access: CheckoutAccess): Record<string, string> {
+  const headers: Record<string, string> = {};
+  if (access.token) headers.Authorization = `Bearer ${access.token}`;
+  return headers;
+}
+
 export function checkoutRequestHeaders(access: CheckoutAccess): Record<string, string> {
   const headers: Record<string, string> = {};
   if (access.token) headers.Authorization = `Bearer ${access.token}`;
-  if (access.guestToken) headers['X-Checkout-Token'] = access.guestToken;
+  else if (access.guestToken) headers['X-Checkout-Token'] = access.guestToken;
   return headers;
 }
 

@@ -38,7 +38,11 @@ export const PaymentReturn = () => {
     const checkoutId = getStoredCheckoutId();
     if (!checkoutId) return;
     try {
-      await confirmCheckout(checkoutId, { paymentMethod: PAYMENT_METHOD_PAYTECH }, access);
+      await confirmCheckout(
+        checkoutId,
+        { paymentMethod: PAYMENT_METHOD_PAYTECH, paymentId: paymentId ?? undefined },
+        access
+      );
       await clearCart();
       clearCheckoutSessionKeys();
       success('Paiement confirmé. Merci pour votre commande !');
@@ -46,7 +50,7 @@ export const PaymentReturn = () => {
       // Webhook backend peut avoir déjà confirmé la commande.
       clearCheckoutSessionKeys();
     }
-  }, [access, clearCart, success]);
+  }, [access, clearCart, paymentId, success]);
 
   const { status, errorMessage, isPolling } = usePaymentStatusPoll({
     access,

@@ -14,9 +14,10 @@ import { useHerboristeriePriceAccess } from '../hooks/useHerboristeriePriceAcces
 import { ProfessionalPriceHint } from '../components/catalog/ProfessionalPriceHint';
 import { PaytechPaymentInfo } from '../features/checkout/components/PaytechPaymentInfo';
 import { unitPriceForLine } from '../features/catalog/productUtils';
-import { ApiError } from '../services/api/apiError';
+import { ApiError, getApiErrorCode } from '../services/api/apiError';
 import { confirmCheckout, initCheckout } from '../services/api/commerceApi';
 import { initPaytechCheckoutPayment } from '../services/api/paymentApi';
+import { checkoutErrorMessage } from '../lib/checkoutErrorMessages';
 import { getCheckoutAccess, saveCheckoutSession, saveGuestCheckoutToken } from '../lib/checkoutAccess';
 import { usePendingPaymentsStore } from '../store/pendingPaymentsStore';
 import { PAYMENT_METHOD_PAYTECH } from '../services/payment/paytechTypes';
@@ -193,12 +194,12 @@ export const Checkout = () => {
           billingAddress: billingSameAsShipping ? shipping : billing,
           billingSameAsShipping,
           items: cartProducts.map((item) => ({
-            productId: item.storeProductId,
+            productId: item.id,
             quantity: item.quantity,
             variantId: item.variantId,
           })),
         },
-        access
+        { token: access.token }
       );
       const checkoutId = init.checkoutId ?? init.checkout_session_id;
       if (!checkoutId) {
@@ -234,7 +235,8 @@ export const Checkout = () => {
         return;
       } catch (apiErr) {
         const missingRoute =
-          apiErr instanceof ApiError && (apiErr.status === 404 || apiErr.status === 405);
+          apiErr instanceof ApiError &&
+          (apiErr.status === 405 || (apiErr.status === 404 && !getApiErrorCode(apiErr)));
         if (missingRoute) {
           info(
             'Le paiement PayTech n’est pas encore disponible sur le serveur : votre commande est enregistrée sur cet appareil.'
@@ -245,7 +247,7 @@ export const Checkout = () => {
         throw apiErr;
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Impossible de finaliser la commande.';
+      const msg = checkoutErrorMessage(err);
       setFormError(msg);
       toastError(msg);
       trackCheckoutPaymentFailed('api_error');

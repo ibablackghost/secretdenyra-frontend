@@ -27,11 +27,15 @@ export function usePendingPayments() {
     async (paymentId: string) => {
       if (!token) return null;
       const current = items.find((item) => item.paymentId === paymentId);
-      const result = await getPaymentStatus(token, paymentId);
+      const result = await getPaymentStatus(paymentId, { token });
 
       if (result.status === 'SUCCESS' && current?.checkoutId) {
         try {
-          await confirmCheckout(current.checkoutId, { paymentMethod: PAYMENT_METHOD_PAYTECH }, { token });
+          await confirmCheckout(
+            current.checkoutId,
+            { paymentMethod: PAYMENT_METHOD_PAYTECH, paymentId },
+            { token }
+          );
           await Promise.all([hydrateOrders(), hydratePurchasedProducts()]);
         } catch {
           // Commande peut déjà être confirmée via IPN PayTech.

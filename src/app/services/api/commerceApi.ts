@@ -1,6 +1,6 @@
 import { requestJson } from './httpClient';
 import type { CheckoutAccess } from '../../lib/checkoutAccess';
-import { checkoutRequestHeaders } from '../../lib/checkoutAccess';
+import { checkoutRequestHeaders, initCheckoutRequestHeaders } from '../../lib/checkoutAccess';
 
 const STRAPI_URL = import.meta.env.VITE_STRAPI_URL;
 
@@ -327,14 +327,14 @@ export type CheckoutInitResponse = {
 export async function initCheckout(input: CheckoutInitInput, access: CheckoutAccess = {}) {
   return requestJson<CheckoutInitResponse>(url('/api/checkout/init'), {
     method: 'POST',
-    headers: checkoutRequestHeaders(access),
+    headers: initCheckoutRequestHeaders(access),
     body: input,
   });
 }
 
 export async function confirmCheckout(
   checkoutId: string,
-  input: { paymentMethod: string; paymentIntentId?: string },
+  input: { paymentMethod: string; paymentIntentId?: string; paymentId?: string },
   access: CheckoutAccess = {}
 ) {
   return requestJson<{ order?: { id?: string }; orderId?: string }>(url(`/api/checkout/${checkoutId}/confirm`), {
