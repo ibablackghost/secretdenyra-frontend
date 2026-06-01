@@ -38,6 +38,23 @@ export function getCatalogPriceRange(products: UIProduct[]): { min: number; max:
   return { min: min === Infinity ? 0 : min, max: Math.max(cap, 10_000) };
 }
 
+export function findCatalogProduct(products: UIProduct[], storedRef: string): UIProduct | undefined {
+  const ref = storedRef.trim();
+  if (!ref) return undefined;
+  return products.find((p) => p.id === ref || p.slug === ref);
+}
+
+/** Référence produit pour POST /api/checkout/init (slug catalogue). */
+export function checkoutProductRef(product: UIProduct): string {
+  return product.slug || product.id;
+}
+
+/** Variante pour le checkout — omise si introuvable (variante par défaut côté backend). */
+export function checkoutVariantRef(product: UIProduct, variantId?: string): string | undefined {
+  if (variantId == null || String(variantId).trim() === '') return undefined;
+  return resolveVariant(product, variantId)?.id;
+}
+
 export function getDefaultVariant(product: UIProduct): UIProductVariant | null {
   const list = product.variants ?? [];
   if (list.length === 0) return null;

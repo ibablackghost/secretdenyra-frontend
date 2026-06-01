@@ -13,12 +13,23 @@ import { usePurchasedProductsStore } from '../store/purchasedProductsStore';
 import { useHerboristeriePriceAccess } from '../hooks/useHerboristeriePriceAccess';
 import { ProfessionalPriceHint } from '../components/catalog/ProfessionalPriceHint';
 import { PaytechPaymentInfo } from '../features/checkout/components/PaytechPaymentInfo';
-import { unitPriceForLine } from '../features/catalog/productUtils';
+import {
+  checkoutProductRef,
+  checkoutVariantRef,
+  findCatalogProduct,
+  unitPriceForLine,
+} from '../features/catalog/productUtils';
+import { useReconcileCartWhenReady } from '../hooks/useReconcileCartWhenReady';
 import { ApiError, getApiErrorCode } from '../services/api/apiError';
 import { confirmCheckout, initCheckout } from '../services/api/commerceApi';
 import { initPaytechCheckoutPayment } from '../services/api/paymentApi';
 import { checkoutErrorMessage } from '../lib/checkoutErrorMessages';
-import { getCheckoutAccess, saveCheckoutSession, saveGuestCheckoutToken } from '../lib/checkoutAccess';
+import {
+  clearCheckoutSessionKeys,
+  getCheckoutAccess,
+  saveCheckoutSession,
+  saveGuestCheckoutToken,
+} from '../lib/checkoutAccess';
 import { usePendingPaymentsStore } from '../store/pendingPaymentsStore';
 import { PAYMENT_METHOD_PAYTECH } from '../services/payment/paytechTypes';
 import {
@@ -46,11 +57,13 @@ export const Checkout = () => {
 
   const cartItems = useCartStore((s) => s.items);
   const clearCart = useCartStore((s) => s.clearCart);
+  const reconcileWithCatalog = useCartStore((s) => s.reconcileWithCatalog);
   const addOrder = useOrderStore((s) => s.addOrder);
   const hydratePurchasedProducts = usePurchasedProductsStore((s) => s.hydrateFromServer);
   const upsertPendingPayment = usePendingPaymentsStore((s) => s.upsert);
   const { shouldHidePrice, canPurchaseProduct } = useHerboristeriePriceAccess();
   const { products, loading, error } = useCatalog();
+  useReconcileCartWhenReady(false);
 
   const {
     customer,
@@ -71,10 +84,16 @@ export const Checkout = () => {
     () =>
       cartItems
         .map((item) => {
-          const product = products.find((p) => p.id === item.productId || p.slug === item.productId);
+          const product = findCatalogProduct(products, item.productId);
           if (!product) return null;
           const unitPrice = unitPriceForLine(product, item.variantId);
-          return { ...product, storeProductId: item.productId, quantity: item.quantity, variantId: item.variantId, unitPrice };
+          return {
+            ...product,
+            storeProductId: checkoutProductRef(product),
+            quantity: item.quantity,
+            variantId: item.variantId,
+            unitPrice,
+          };
         })
         .filter((item): item is NonNullable<typeof item> => Boolean(item)),
     [cartItems, products]
@@ -186,18 +205,41 @@ export const Checkout = () => {
     setIsPaying(true);
 
     try {
+      clearCheckoutSessionKeys();
+      if (products.length > 0) {
+        reconcileWithCatalog(products);
+      }
+
       const access = getCheckoutAccess();
+      const lines = useCartStore.getState().items;
+      const payableProducts = lines
+        .map((item) => {
+          const product = findCatalogProduct(products, item.productId);
+          if (!product || !canPurchaseProduct(product)) return null;
+          const line: { productId: string; quantity: number; variantId?: string } = {
+            productId: checkoutProductRef(product),
+            quantity: item.quantity,
+          };
+          const variantRef = checkoutVariantRef(product, item.variantId);
+          if (variantRef) line.variantId = variantRef;
+          return line;
+        })
+        .filter((line): line is NonNullable<typeof line> => Boolean(line));
+
+      if (payableProducts.length === 0) {
+        const msg = 'Aucun article valide pour le paiement. Videz le panier et rajoutez vos produits.';
+        setFormError(msg);
+        toastError(msg);
+        return;
+      }
+
       const init = await initCheckout(
         {
           customer,
           shippingAddress: shipping,
           billingAddress: billingSameAsShipping ? shipping : billing,
           billingSameAsShipping,
-          items: cartProducts.map((item) => ({
-            productId: item.id,
-            quantity: item.quantity,
-            variantId: item.variantId,
-          })),
+          items: payableProducts,
         },
         { token: access.token }
       );
