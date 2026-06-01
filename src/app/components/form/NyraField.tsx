@@ -1,7 +1,7 @@
 import type { InputHTMLAttributes, ReactNode, TextareaHTMLAttributes } from 'react';
 
 const fieldClass =
-  'w-full rounded-[10px] border border-gray-200 bg-white px-4 py-3 font-["Mulish",sans-serif] text-base text-[#1a1a1a] placeholder:text-gray-400 outline-none transition-shadow focus:border-[#a4a374] focus:ring-2 focus:ring-[#a4a374]/25';
+  'w-full min-h-[48px] rounded-[10px] border border-gray-200 bg-white px-4 py-3 font-["Mulish",sans-serif] text-base text-[#1a1a1a] placeholder:text-gray-400 outline-none transition-shadow focus:border-[#a4a374] focus:ring-2 focus:ring-[#a4a374]/25 touch-manipulation';
 
 export function NyraLabel({ children, htmlFor }: { children: ReactNode; htmlFor?: string }) {
   return (
@@ -58,7 +58,7 @@ export function NyraButton({
   ...rest
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'outline' | 'ghost' }) {
   const base =
-    'inline-flex items-center justify-center rounded-full px-8 py-3.5 font-["Mulish",sans-serif] text-sm font-semibold transition-colors disabled:opacity-50 disabled:pointer-events-none';
+    'inline-flex min-h-[48px] touch-manipulation items-center justify-center gap-2 rounded-full px-6 py-3 font-["Mulish",sans-serif] text-sm font-semibold transition-colors disabled:pointer-events-none disabled:opacity-50 sm:px-8';
   const styles =
     variant === 'primary'
       ? 'bg-[#a4a374] text-white hover:bg-[#8d8c5d]'

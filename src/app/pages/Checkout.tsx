@@ -266,7 +266,7 @@ export const Checkout = () => {
         <span className="font-medium text-[#1a1a1a]">Checkout</span>
       </nav>
 
-      <div className="mb-8 flex items-center gap-3 overflow-x-auto pb-2">
+      <div className="mb-8 flex items-center gap-2 overflow-x-auto pb-2 -mx-1 px-1 sm:gap-3">
         <div className={`h-8 w-8 rounded-full text-sm font-bold flex items-center justify-center ${step === 1 ? 'bg-[#1a1a1a] text-white' : 'bg-[#a4a374] text-white'}`}>1</div>
         <span aria-current={step === 1 ? 'step' : undefined} className={`whitespace-nowrap text-sm font-semibold ${step === 1 ? 'text-[#1a1a1a]' : 'text-gray-500'}`}>Informations client</span>
         <div className="h-px flex-1 bg-gray-200" />
@@ -277,7 +277,7 @@ export const Checkout = () => {
         <span aria-current={step === 3 ? 'step' : undefined} className={`whitespace-nowrap text-sm font-semibold ${step === 3 ? 'text-[#1a1a1a]' : 'text-gray-500'}`}>Paiement</span>
       </div>
 
-      <div className="rounded-[16px] border border-gray-100 bg-white p-6 md:p-8 shadow-sm">
+      <div className="rounded-[16px] border border-gray-100 bg-white p-4 shadow-sm sm:p-6 md:p-8">
         {step === 1 ? (
           <div className="space-y-5">
             <h1 className="text-2xl font-bold text-[#1a1a1a]">Étape 1 - Informations client</h1>
@@ -302,9 +302,9 @@ export const Checkout = () => {
               </div>
             </div>
             <NyraFormError message={formError} />
-            <div className="flex justify-end">
-              <NyraButton onClick={handleContinue}>
-                Continuer <ArrowRight className="ml-2 h-4 w-4" />
+            <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+              <NyraButton onClick={handleContinue} className="w-full sm:w-auto">
+                Continuer <ArrowRight className="h-4 w-4" />
               </NyraButton>
             </div>
           </div>
@@ -377,12 +377,12 @@ export const Checkout = () => {
             </section>
 
             <NyraFormError message={formError} />
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <NyraButton type="button" variant="outline" onClick={() => setStep(1)}>
-                <ArrowLeft className="mr-2 h-4 w-4" /> Retour
+            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <NyraButton type="button" variant="outline" onClick={() => setStep(1)} className="w-full sm:w-auto">
+                <ArrowLeft className="h-4 w-4" /> Retour
               </NyraButton>
-              <NyraButton type="button" onClick={handleSubmitStep2}>
-                Continuer vers paiement <ArrowRight className="ml-2 h-4 w-4" />
+              <NyraButton type="button" onClick={handleSubmitStep2} className="w-full sm:w-auto">
+                Continuer vers paiement <ArrowRight className="h-4 w-4" />
               </NyraButton>
             </div>
           </div>
@@ -461,13 +461,13 @@ export const Checkout = () => {
               </div>
             ) : null}
 
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <NyraButton type="button" variant="outline" onClick={() => setStep(2)}>
-                <ArrowLeft className="mr-2 h-4 w-4" /> Retour
+            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <NyraButton type="button" variant="outline" onClick={() => setStep(2)} className="w-full sm:w-auto">
+                <ArrowLeft className="h-4 w-4" /> Retour
               </NyraButton>
-              <NyraButton type="button" onClick={handlePay} disabled={isPaying || loading}>
-                {isPaying ? 'Redirection PayTech...' : 'Payer avec PayTech'}{' '}
-                <ArrowRight className="ml-2 h-4 w-4" />
+              <NyraButton type="button" onClick={handlePay} disabled={isPaying || loading} className="w-full sm:w-auto">
+                {isPaying ? 'Redirection PayTech...' : 'Payer avec PayTech'}
+                <ArrowRight className="h-4 w-4" />
               </NyraButton>
             </div>
           </div>

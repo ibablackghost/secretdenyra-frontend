@@ -176,23 +176,86 @@ export const Product = () => {
     );
   }
 
+  const addToCartDisabled =
+    !isInStock || !canPurchase || (product.variants.length > 0 && !resolvedVariant);
+
+  const purchaseControls = (
+    <>
+      <div
+        className="flex h-[52px] w-[132px] shrink-0 items-center justify-between rounded-[8px] border border-gray-300 bg-white px-1"
+        role="group"
+        aria-label="Quantité"
+      >
+        <button
+          type="button"
+          onClick={() => setQuantity(Math.max(1, quantity - 1))}
+          className="flex h-11 w-11 shrink-0 touch-manipulation items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-gray-50 hover:text-black"
+          disabled={!isInStock}
+          aria-label="Diminuer la quantité"
+        >
+          <Minus className="h-4 w-4" />
+        </button>
+        <span className="min-w-[2ch] text-center text-lg font-semibold text-[#1a1a1a]" aria-live="polite">
+          {quantity}
+        </span>
+        <button
+          type="button"
+          onClick={() => setQuantity(Math.min(maxQty, quantity + 1))}
+          className="flex h-11 w-11 shrink-0 touch-manipulation items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-gray-50 hover:text-black"
+          disabled={!isInStock}
+          aria-label="Augmenter la quantité"
+        >
+          <Plus className="h-4 w-4" />
+        </button>
+      </div>
+
+      <button
+        type="button"
+        onClick={handleAdd}
+        disabled={addToCartDisabled}
+        className={`flex h-[52px] min-w-0 flex-1 touch-manipulation items-center justify-center gap-2 rounded-[8px] px-4 text-base font-bold transition-all ${
+          added
+            ? 'bg-green-600 text-white'
+            : 'bg-[#1a1a1a] text-white shadow-lg shadow-black/10 hover:bg-[#303030] disabled:cursor-not-allowed disabled:opacity-60'
+        }`}
+      >
+        {added ? (
+          <>
+            <Check className="h-5 w-5 shrink-0" />
+            <span className="truncate">Ajouté</span>
+          </>
+        ) : isInStock ? (
+          <span className="truncate">Ajouter au panier</span>
+        ) : (
+          <span className="truncate">Indisponible</span>
+        )}
+      </button>
+    </>
+  );
+
   return (
-    <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-8 md:py-16">
-      <div className="flex items-center gap-2 text-sm text-gray-500 mb-8 font-['Mulish',sans-serif]">
-        <Link to="/" className="hover:text-[#1a1a1a] transition-colors">
+    <div className="mx-auto max-w-[1400px] px-4 pb-28 md:px-8 md:pb-16 md:py-16 py-8">
+      <nav
+        className="mb-6 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-gray-500 sm:mb-8 sm:gap-x-2 sm:text-sm font-['Mulish',sans-serif]"
+        aria-label="Fil d'Ariane"
+      >
+        <Link to="/" className="hover:text-[#1a1a1a] transition-colors shrink-0">
           Accueil
         </Link>
-        <span className="text-gray-300">/</span>
-        <Link to="/shop" className="hover:text-[#1a1a1a] transition-colors">
+        <span className="text-gray-300 shrink-0">/</span>
+        <Link to="/shop" className="hover:text-[#1a1a1a] transition-colors shrink-0">
           Boutique
         </Link>
-        <span className="text-gray-300">/</span>
-        <Link to={`/shop/category/${product.category.slug}`} className="hover:text-[#1a1a1a] transition-colors truncate">
+        <span className="text-gray-300 shrink-0">/</span>
+        <Link
+          to={`/shop/category/${product.category.slug}`}
+          className="max-w-[40vw] truncate hover:text-[#1a1a1a] transition-colors sm:max-w-none"
+        >
           {product.category.name}
         </Link>
-        <span className="text-gray-300">/</span>
-        <span className="text-[#1a1a1a] font-medium truncate">{product.name}</span>
-      </div>
+        <span className="text-gray-300 shrink-0">/</span>
+        <span className="min-w-0 flex-1 truncate font-medium text-[#1a1a1a]">{product.name}</span>
+      </nav>
 
       <div className="flex flex-col md:flex-row gap-12 lg:gap-20">
         <div className="w-full md:w-1/2 flex flex-col gap-4">
@@ -201,7 +264,7 @@ export const Product = () => {
               type="button"
               aria-label={inWishlist ? 'Retirer des favoris' : 'Ajouter aux favoris'}
               onClick={() => handleToggleWishlist(product, inWishlist)}
-              className="absolute right-6 top-6 z-10 flex h-12 w-12 items-center justify-center rounded-full bg-white/95 text-gray-700 shadow-md transition-colors hover:bg-white"
+              className="absolute right-4 top-4 z-10 flex h-11 w-11 touch-manipulation items-center justify-center rounded-full bg-white/95 text-gray-700 shadow-md transition-colors hover:bg-white sm:right-6 sm:top-6 sm:h-12 sm:w-12"
             >
               <Heart className={`h-6 w-6 ${inWishlist ? 'fill-[#c45c5c] text-[#c45c5c]' : ''}`} />
             </button>
@@ -212,7 +275,7 @@ export const Product = () => {
               fallbackClassName="w-[85%] h-[70%]"
             />
           </div>
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-4 gap-2 sm:gap-4">
             {(gallery.length ? gallery : [product.image]).slice(0, 4).map((image, index) => (
               <button
                 type="button"
@@ -231,7 +294,7 @@ export const Product = () => {
         <div className="w-full md:w-1/2 flex flex-col pt-2 md:pt-6">
           <div className="flex flex-col gap-3 mb-6">
             <span className="text-xs font-bold tracking-widest text-[#a4a374] uppercase font-['Mulish',sans-serif]">{product.category.name}</span>
-            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-[#1a1a1a] font-['Mulish',sans-serif] leading-tight">{product.name}</h1>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-[#1a1a1a] font-['Mulish',sans-serif] leading-tight">{product.name}</h1>
 
             <div className="flex flex-wrap gap-2">
               {product.tags.slice(0, 6).map((tag) => (
@@ -281,7 +344,7 @@ export const Product = () => {
           {product.variants.length > 0 ? (
             <div className="mb-8 space-y-3">
               <h3 className="text-sm font-bold uppercase tracking-wider text-[#1a1a1a]">Format</h3>
-              <div className="flex flex-wrap gap-2">
+              <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-2">
                 {product.variants.map((variant) => {
                   const active = resolvedVariant?.id === variant.id;
                   const disabled = variant.inStock === false || (typeof variant.stockQty === 'number' && variant.stockQty <= 0);
@@ -293,7 +356,7 @@ export const Product = () => {
                       type="button"
                       disabled={disabled}
                       onClick={() => setSelectedVariant(variant)}
-                      className={`rounded-[10px] border px-4 py-2 text-left text-sm transition-colors ${
+                      className={`min-h-[48px] touch-manipulation rounded-[10px] border px-3 py-2.5 text-left text-sm transition-colors sm:px-4 ${
                         disabled
                           ? 'cursor-not-allowed border-gray-100 bg-gray-50 text-gray-400'
                           : active
@@ -333,48 +396,7 @@ export const Product = () => {
             </span>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-4 mb-10 pt-4">
-            <div className="flex items-center justify-between border border-gray-300 rounded-[8px] h-[52px] w-full sm:w-[140px] px-2 bg-white">
-              <button
-                type="button"
-                onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                className="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-black rounded-md hover:bg-gray-50 transition-colors"
-                disabled={!isInStock}
-              >
-                <Minus className="w-4 h-4" />
-              </button>
-              <span className="font-semibold text-[#1a1a1a] text-lg">{quantity}</span>
-              <button
-                type="button"
-                onClick={() => setQuantity(Math.min(maxQty, quantity + 1))}
-                className="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-black rounded-md hover:bg-gray-50 transition-colors"
-                disabled={!isInStock}
-              >
-                <Plus className="w-4 h-4" />
-              </button>
-            </div>
-
-            <button
-              type="button"
-              onClick={handleAdd}
-              disabled={!isInStock || !canPurchase || (product.variants.length > 0 && !resolvedVariant)}
-              className={`flex-1 h-[52px] rounded-[8px] font-bold text-base flex items-center justify-center gap-2 transition-all ${
-                added
-                  ? 'bg-green-600 text-white'
-                  : 'bg-[#1a1a1a] hover:bg-[#303030] text-white shadow-lg shadow-black/10 disabled:opacity-60 disabled:cursor-not-allowed'
-              }`}
-            >
-              {added ? (
-                <>
-                  <Check className="w-5 h-5" /> Ajouté au panier
-                </>
-              ) : isInStock ? (
-                'Ajouter au panier'
-              ) : (
-                'Indisponible'
-              )}
-            </button>
-          </div>
+          <div className="mb-10 hidden gap-3 pt-4 md:flex">{purchaseControls}</div>
 
           <div className="grid grid-cols-1 gap-4 text-sm text-[#1a1a1a] py-6 border-y border-gray-100">
             <div className="flex items-center gap-3">
@@ -404,6 +426,13 @@ export const Product = () => {
             <p>Description à venir.</p>
           )}
         </div>
+      </div>
+
+      <div
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white/95 p-4 shadow-[0_-8px_24px_rgba(0,0,0,0.08)] backdrop-blur-md pb-[max(1rem,env(safe-area-inset-bottom))] md:hidden"
+        aria-label="Ajouter au panier"
+      >
+        <div className="mx-auto flex max-w-[1400px] items-stretch gap-3">{purchaseControls}</div>
       </div>
 
       {similarProducts.length > 0 ? (

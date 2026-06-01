@@ -113,7 +113,7 @@ function ProductCardBase({ product, wished, onToggleWishlist, onAddToCart }: Pro
               }
               onAddToCart(product);
             }}
-            className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full bg-[#1a1a1a] transition-colors hover:bg-[#a4a374] disabled:cursor-not-allowed disabled:opacity-40"
+            className="flex h-11 w-11 shrink-0 touch-manipulation cursor-pointer items-center justify-center rounded-full bg-[#1a1a1a] transition-colors hover:bg-[#a4a374] disabled:cursor-not-allowed disabled:opacity-40 sm:h-10 sm:w-10"
             aria-label="Add to cart"
             disabled={isOutOfStock || !canPurchase}
           >
