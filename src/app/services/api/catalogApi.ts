@@ -187,10 +187,18 @@ function mapProduct(entity: StrapiEntity<StrapiProduct>): UIProduct | null {
     })
     .filter(Boolean) as UIProductVariant[];
   const mainImage = buildMediaUrl(readField(entity, 'image'));
+  const entityRecord = entity as Record<string, unknown>;
+  const documentId =
+    getString(entityRecord.documentId) ||
+    getString(readField(entity, 'documentId')) ||
+    undefined;
+  const strapiId = entity.id != null && entity.id !== '' ? String(entity.id) : undefined;
 
   return {
     id: slug,
     slug,
+    documentId,
+    strapiId,
     name,
     ingredients: getString(readField(entity, 'ingredients')),
     price: getNumber(readField(entity, 'price')),
@@ -215,9 +223,10 @@ async function fetchAllStrapiProductEntities(signal: AbortSignal | undefined): P
   const populate =
     'populate[category]=true&populate[image]=true&populate[gallery]=true&populate[tags]=true&populate[variants]=true';
   const all: Array<StrapiEntity<StrapiProduct>> = [];
+  const cacheBust = Date.now();
   let page = 1;
   for (let safety = 0; safety < 200; safety++) {
-    const url = `${STRAPI_URL}/api/products?pagination[page]=${page}&pagination[pageSize]=${STRAPI_PRODUCTS_PAGE_SIZE}&${populate}`;
+    const url = `${STRAPI_URL}/api/products?pagination[page]=${page}&pagination[pageSize]=${STRAPI_PRODUCTS_PAGE_SIZE}&${populate}&_ts=${cacheBust}`;
     const json = await requestJson<StrapiListResponse<StrapiProduct>>(url, { signal, timeoutMs: 45_000 });
     const batch = json.data ?? [];
     all.push(...batch);

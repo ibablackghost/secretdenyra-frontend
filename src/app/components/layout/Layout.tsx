@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router';
+import { useCartCatalogSync } from '@/app/hooks/useCartCatalogSync';
 import { Header } from './Header';
 import { Footer } from './Footer';
 import { ToastViewport } from '../ui/ToastViewport';
@@ -15,6 +16,8 @@ const ScrollToTop = () => {
 };
 
 export const Layout = () => {
+  useCartCatalogSync();
+
   return (
     <div className="min-h-screen flex flex-col font-['Mulish',sans-serif] bg-[#fafafa] text-[#131313]">
       <ScrollToTop />

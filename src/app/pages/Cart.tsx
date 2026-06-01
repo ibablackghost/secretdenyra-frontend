@@ -12,7 +12,12 @@ import {
   trackCartAbandoned,
   trackRemoveFromCart,
 } from '../services/analytics/tracking';
-import { unitPriceForLine, resolveVariant } from '../features/catalog/productUtils';
+import {
+  checkoutProductRef,
+  findCatalogProduct,
+  resolveVariant,
+  unitPriceForLine,
+} from '../features/catalog/productUtils';
 import type { UIProduct } from '../features/catalog/types';
 import { useHerboristeriePriceAccess } from '../hooks/useHerboristeriePriceAccess';
 import { ProfessionalPriceHint } from '../components/catalog/ProfessionalPriceHint';
@@ -27,7 +32,7 @@ type CartLineProduct = UIProduct & {
 };
 
 export const Cart = () => {
-  const { items, removeItem, updateQuantity } = useCartStore();
+  const { items, removeItem, updateQuantity, clearCart } = useCartStore();
   const { products, loading, error } = useCatalog();
   const { success, info, error: toastError } = useToast();
   const { shouldHidePrice, canPurchaseProduct } = useHerboristeriePriceAccess();
@@ -37,14 +42,14 @@ export const Cart = () => {
   const cartProducts = useMemo((): CartLineProduct[] => {
     const rows: CartLineProduct[] = [];
     for (const item of items) {
-      const product = products.find((p) => p.id === item.productId || p.slug === item.productId);
+      const product = findCatalogProduct(products, item.productId);
       if (!product) continue;
       const unitPrice = unitPriceForLine(product, item.variantId);
       const resolvedVar = resolveVariant(product, item.variantId);
       rows.push({
         ...product,
         lineKey: `${item.itemId ?? item.id ?? item.productId}::${item.productId}::${item.variantId ?? ''}`,
-        storeProductId: item.productId,
+        storeProductId: checkoutProductRef(product),
         quantity: item.quantity,
         variantId: item.variantId,
         unitPrice,
@@ -131,12 +136,18 @@ export const Cart = () => {
     };
   }, [trackedItems, total]);
 
-  if (items.length === 0) {
+  const staleLineCount = !loading && products.length > 0 ? Math.max(0, items.length - cartProducts.length) : 0;
+
+  if (items.length === 0 || (!loading && products.length > 0 && cartProducts.length === 0)) {
     return (
       <EmptyState
         className="max-w-[1400px] mx-auto px-4 md:px-8 py-20"
         title="Votre panier est vide"
-        description="Découvrez nos mélanges exclusifs de plantes bio et commencez votre rituel bien-être dès aujourd'hui."
+        description={
+          staleLineCount > 0
+            ? 'Des articles enregistrés sur cet appareil ne sont plus disponibles. Le catalogue a été mis à jour.'
+            : "Découvrez nos mélanges exclusifs de plantes bio et commencez votre rituel bien-être dès aujourd'hui."
+        }
         action={
           <Link to="/shop" className="bg-[#a4a374] text-white px-8 py-4 rounded-full font-semibold hover:bg-[#8d8c5d] transition-colors">
             Découvrir la boutique
@@ -160,6 +171,22 @@ export const Cart = () => {
 
       {hasLockedHerboristerie ? (
         <ProfessionalPriceHint className="mb-8" />
+      ) : null}
+
+      {staleLineCount > 0 ? (
+        <div className="mb-6 rounded-[12px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <p className="font-semibold">Panier partiellement obsolète</p>
+          <p className="mt-1">
+            {staleLineCount} ligne(s) ne correspondent plus au catalogue. Videz le panier et rajoutez vos produits.
+          </p>
+          <button
+            type="button"
+            onClick={() => void clearCart()}
+            className="mt-3 font-semibold text-[#a4a374] underline"
+          >
+            Vider le panier
+          </button>
+        </div>
       ) : null}
 
       <div className="flex flex-col lg:flex-row gap-12">

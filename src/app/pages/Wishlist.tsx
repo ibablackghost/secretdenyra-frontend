@@ -8,7 +8,7 @@ import { ProductCard } from '../features/catalog/components/ProductCard';
 import { useToast } from '../hooks/useToast';
 import type { UIProduct } from '../features/catalog/types';
 import { trackAddToCart } from '../services/analytics/tracking';
-import { getDefaultVariant, unitPriceForLine } from '../features/catalog/productUtils';
+import { checkoutProductRef, getDefaultVariant, unitPriceForLine } from '../features/catalog/productUtils';
 
 export const Wishlist = () => {
   const ids = useWishlistStore((s) => s.ids);
@@ -21,7 +21,7 @@ export const Wishlist = () => {
 
   const handleAddToCart = (product: UIProduct) => {
     const def = getDefaultVariant(product);
-    void addItem(product.id, { variantId: def?.id, quantity: 1 });
+    void addItem(checkoutProductRef(product), { variantId: def?.id, quantity: 1 });
     trackAddToCart({ ...product, price: unitPriceForLine(product, def?.id) }, 1);
     success(`Ajouté au panier: ${product.name}`);
   };
