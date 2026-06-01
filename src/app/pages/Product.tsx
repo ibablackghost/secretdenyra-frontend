@@ -11,7 +11,7 @@ import { MediaImage } from '../components/ui/MediaImage';
 import { ProductCard } from '../features/catalog/components/ProductCard';
 import { useToast } from '../hooks/useToast';
 import type { UIProduct, UIProductVariant } from '../features/catalog/types';
-import { checkoutProductRef, getDefaultVariant, stockForLine } from '../features/catalog/productUtils';
+import { getDefaultVariant, stockForLine } from '../features/catalog/productUtils';
 import { useViewedProductsStore } from '../store/viewedProductsStore';
 import { useSeo } from '../hooks/useSeo';
 import { trackAddToCart, trackViewProduct } from '../services/analytics/tracking';
@@ -131,7 +131,7 @@ export const Product = () => {
     }
     const variantId = product.variants.length > 0 ? resolvedVariant?.id : undefined;
     if (product.variants.length > 0 && !variantId) return;
-    void addItem(checkoutProductRef(product), { variantId, quantity });
+    void addItem(product.id, { variantId, quantity });
     trackAddToCart({ ...product, price: effectivePrice }, quantity);
     success(`Ajouté au panier: ${product.name} x${quantity}`);
     setAdded(true);
@@ -144,7 +144,7 @@ export const Product = () => {
       return;
     }
     const def = getDefaultVariant(item);
-    void addItem(checkoutProductRef(item), { variantId: def?.id, quantity: 1 });
+    void addItem(item.id, { variantId: def?.id, quantity: 1 });
     trackAddToCart({ ...item, price: def?.price ?? item.price }, 1);
     success(`Ajouté au panier: ${item.name}`);
   };

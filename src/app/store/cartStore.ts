@@ -1,8 +1,5 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { normalizeCartItems } from '../lib/cartCatalogSync';
-import type { UIProduct } from '../features/catalog/types';
-import { clearCheckoutSessionKeys } from '../lib/checkoutAccess';
 import { addCartItem, getCart, removeCartItem, updateCartItem } from '../services/api/commerceApi';
 import { getStoredAuthToken } from '../services/api/session';
 
@@ -25,8 +22,6 @@ interface CartStore {
   removeItem: (productId: string, variantId?: string) => Promise<void>;
   updateQuantity: (productId: string, quantity: number, variantId?: string) => Promise<void>;
   clearCart: () => Promise<void>;
-  /** Aligne productId / variantId sur le catalogue (retourne le nombre de lignes supprimées). */
-  reconcileWithCatalog: (products: UIProduct[]) => number;
 }
 
 export const useCartStore = create<CartStore>()(
@@ -112,20 +107,10 @@ export const useCartStore = create<CartStore>()(
           await get().hydrateFromServer();
         } catch {}
       },
-      reconcileWithCatalog: (products) => {
-        const before = get().items;
-        if (before.length === 0) return 0;
-        const { items, removedCount } = normalizeCartItems(before, products);
-        const beforeKey = JSON.stringify(before.map((i) => [i.productId, i.variantId ?? '', i.quantity]));
-        const afterKey = JSON.stringify(items.map((i) => [i.productId, i.variantId ?? '', i.quantity]));
-        if (beforeKey !== afterKey) set({ items });
-        return removedCount;
-      },
       clearCart: async () => {
         const token = getStoredAuthToken();
         const snapshot = [...get().items];
         set({ items: [] });
-        clearCheckoutSessionKeys();
         if (!token) return;
         try {
           await Promise.all(

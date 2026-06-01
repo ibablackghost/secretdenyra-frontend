@@ -18,13 +18,7 @@ import { ApiError, getApiErrorCode } from '../services/api/apiError';
 import { confirmCheckout, initCheckout } from '../services/api/commerceApi';
 import { initPaytechCheckoutPayment } from '../services/api/paymentApi';
 import { checkoutErrorMessage } from '../lib/checkoutErrorMessages';
-import {
-  clearCheckoutSessionKeys,
-  getCheckoutAccess,
-  saveCheckoutSession,
-  saveGuestCheckoutToken,
-} from '../lib/checkoutAccess';
-import { checkoutProductRef, checkoutVariantRef, findCatalogProduct } from '../features/catalog/productUtils';
+import { getCheckoutAccess, saveCheckoutSession, saveGuestCheckoutToken } from '../lib/checkoutAccess';
 import { usePendingPaymentsStore } from '../store/pendingPaymentsStore';
 import { PAYMENT_METHOD_PAYTECH } from '../services/payment/paytechTypes';
 import {
@@ -77,16 +71,10 @@ export const Checkout = () => {
     () =>
       cartItems
         .map((item) => {
-          const product = findCatalogProduct(products, item.productId);
+          const product = products.find((p) => p.id === item.productId || p.slug === item.productId);
           if (!product) return null;
           const unitPrice = unitPriceForLine(product, item.variantId);
-          return {
-            ...product,
-            storeProductId: checkoutProductRef(product),
-            quantity: item.quantity,
-            variantId: item.variantId,
-            unitPrice,
-          };
+          return { ...product, storeProductId: item.productId, quantity: item.quantity, variantId: item.variantId, unitPrice };
         })
         .filter((item): item is NonNullable<typeof item> => Boolean(item)),
     [cartItems, products]
@@ -198,7 +186,6 @@ export const Checkout = () => {
     setIsPaying(true);
 
     try {
-      clearCheckoutSessionKeys();
       const access = getCheckoutAccess();
       const init = await initCheckout(
         {
@@ -206,15 +193,11 @@ export const Checkout = () => {
           shippingAddress: shipping,
           billingAddress: billingSameAsShipping ? shipping : billing,
           billingSameAsShipping,
-          items: cartProducts.map((item) => {
-            const line: { productId: string; quantity: number; variantId?: string } = {
-              productId: checkoutProductRef(item),
-              quantity: item.quantity,
-            };
-            const variantRef = checkoutVariantRef(item, item.variantId);
-            if (variantRef) line.variantId = variantRef;
-            return line;
-          }),
+          items: cartProducts.map((item) => ({
+            productId: item.id,
+            quantity: item.quantity,
+            variantId: item.variantId,
+          })),
         },
         { token: access.token }
       );

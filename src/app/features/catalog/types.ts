@@ -24,13 +24,8 @@ export type UIProductVariant = {
 };
 
 export type UIProduct = {
-  /** Identifiant UI (slug) — affichage et routes */
   id: string;
   slug: string;
-  /** Strapi 5 documentId — préféré pour le checkout API */
-  documentId?: string;
-  /** Id numérique Strapi legacy */
-  strapiId?: string;
   name: string;
   ingredients: string;
   shortDescription?: string | null;

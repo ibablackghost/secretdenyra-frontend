@@ -12,7 +12,7 @@ import { useToast } from '../hooks/useToast';
 import type { UIProduct } from '../features/catalog/types';
 import { useSeo } from '../hooks/useSeo';
 import { trackAddToCart } from '../services/analytics/tracking';
-import { checkoutProductRef, getCatalogListPrice, getDefaultVariant, unitPriceForLine } from '../features/catalog/productUtils';
+import { getCatalogListPrice, getDefaultVariant, unitPriceForLine } from '../features/catalog/productUtils';
 
 const SHOP_PRODUCTS_PER_PAGE = 9;
 
@@ -236,7 +236,7 @@ export const Shop = () => {
 
   const handleAddToCart = (product: UIProduct) => {
     const def = getDefaultVariant(product);
-    void addItem(checkoutProductRef(product), { variantId: def?.id, quantity: 1 });
+    void addItem(product.id, { variantId: def?.id, quantity: 1 });
     trackAddToCart({ ...product, price: unitPriceForLine(product, def?.id) }, 1);
     success(`Ajouté au panier: ${product.name}`);
   };

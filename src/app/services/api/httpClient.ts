@@ -19,11 +19,8 @@ export async function requestJson<T>(url: string, options: RequestOptions = {}):
   try {
     const response = await fetch(url, {
       method: options.method ?? 'GET',
-      cache: 'no-store',
       headers: {
         'Content-Type': 'application/json',
-        'Cache-Control': 'no-cache',
-        Pragma: 'no-cache',
         ...options.headers,
       },
       body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
