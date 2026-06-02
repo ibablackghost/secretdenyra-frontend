@@ -41,18 +41,30 @@ export function getCatalogPriceRange(products: UIProduct[]): { min: number; max:
 export function findCatalogProduct(products: UIProduct[], storedRef: string): UIProduct | undefined {
   const ref = storedRef.trim();
   if (!ref) return undefined;
-  return products.find((p) => p.id === ref || p.slug === ref);
+  return products.find(
+    (p) =>
+      p.id === ref ||
+      p.slug === ref ||
+      p.documentId === ref ||
+      (p.strapiId != null && p.strapiId === ref)
+  );
 }
 
-/** Référence produit pour POST /api/checkout/init (slug catalogue). */
+export function variantLineId(variant: UIProductVariant): string {
+  return variant.documentId ?? variant.id;
+}
+
+/** Référence produit pour POST /api/checkout/init (documentId ou slug). */
 export function checkoutProductRef(product: UIProduct): string {
-  return product.slug || product.id;
+  return product.documentId ?? product.slug ?? product.id;
 }
 
-/** Variante pour le checkout — omise si introuvable (variante par défaut côté backend). */
+/** Variante pour le checkout — documentId Strapi en priorité. */
 export function checkoutVariantRef(product: UIProduct, variantId?: string): string | undefined {
   if (variantId == null || String(variantId).trim() === '') return undefined;
-  return resolveVariant(product, variantId)?.id;
+  const resolved = resolveVariant(product, variantId);
+  if (!resolved) return undefined;
+  return resolved.documentId ?? resolved.id;
 }
 
 export function getDefaultVariant(product: UIProduct): UIProductVariant | null {
@@ -66,8 +78,12 @@ export function resolveVariant(product: UIProduct, variantId?: string | null): U
   if (list.length === 0) return null;
   if (variantId != null && String(variantId).trim() !== '') {
     const needle = String(variantId).trim();
+    const byDoc = list.find((v) => v.documentId != null && String(v.documentId).trim() === needle);
+    if (byDoc) return byDoc;
     const byId = list.find((v) => String(v.id).trim() === needle);
     if (byId) return byId;
+    const byStrapi = list.find((v) => v.strapiId != null && String(v.strapiId).trim() === needle);
+    if (byStrapi) return byStrapi;
     const bySku = list.find((v) => v.sku && String(v.sku).trim() === needle);
     if (bySku) return bySku;
     const byLabel = list.find((v) =>

@@ -3,6 +3,10 @@
 Document à transmettre à l'équipe **frontend** (Vite / Vercel).  
 Le front **ne communique jamais directement avec PayTech** : uniquement l'API Strapi Nyra.
 
+> **Retour backend (mai 2026) :** voir [`backend-correction-checkout-paytech.md`](./backend-correction-checkout-paytech.md) — constats prod et checklist Railway / PayTech.  
+> **Variantes & Secret de Nyra (juin 2026) :** voir [`frontend-checkout-variantes.md`](./frontend-checkout-variantes.md).  
+> **Ticket backend (à transmettre) :** [`docs/backend-checkout-corrections-complet.md`](./docs/backend-checkout-corrections-complet.md).
+
 **Backend prod :** `https://secretdenyra-backend-production.up.railway.app`  
 **Frontend prod :** `https://secretdenyra-frontend.vercel.app`
 
@@ -28,13 +32,16 @@ Le front **ne communique jamais directement avec PayTech** : uniquement l'API St
 ### Variable d'environnement front
 
 ```env
-VITE_API_URL=https://secretdenyra-backend-production.up.railway.app
+# Nom utilisé côté front Nyra (sans suffixe /api)
+VITE_STRAPI_URL=https://secretdenyra-backend-production.up.railway.app
 ```
+
+Alias possible : `VITE_API_URL` (même valeur).
 
 En local :
 
 ```env
-VITE_API_URL=http://localhost:1337
+VITE_STRAPI_URL=http://localhost:1337
 ```
 
 ### Préfixe des routes
@@ -175,7 +182,11 @@ Crée une session checkout (invité ou connecté).
     "country": "SN"
   },
   "items": [
-    { "productId": "documentId-ou-slug-ou-id", "quantity": 2 }
+    {
+      "productId": "documentId-ou-slug-ou-id",
+      "variantId": "documentId-variante-optionnel",
+      "quantity": 2
+    }
   ]
 }
 ```
@@ -189,7 +200,9 @@ Crée une session checkout (invité ou connecté).
 | `shippingAddress` | `line1`, `city`, `country` obligatoires |
 | `items` | **Obligatoire pour invité** ; optionnel si JWT (panier serveur) |
 
-`productId` accepte : **`documentId`**, **`slug`**, ou **`id` numérique** du produit en base **prod**. La variante par défaut du produit est choisie automatiquement.
+`productId` accepte : **`documentId`**, **`slug`**, ou **`id` numérique** du produit en base **prod**.
+
+`variantId` (recommandé si le produit a plusieurs formats) : **`documentId`**, **`id` numérique**, ou **`sku`** de la variante. Sans `variantId` → variante par défaut ; produit **sans variante** (ex. Secret de Nyra) → prix au niveau `product.price`.
 
 > Les IDs produits du panier en local doivent exister et être **publiés** sur le Strapi de production.
 
@@ -264,7 +277,7 @@ window.location.href = data.redirectUrl;
 | 400 | `CART_EMPTY` | Panier vide |
 | 409 | `OUT_OF_STOCK` | Stock insuffisant |
 | 503 | `PAYMENT_INFO_INCOMPLETE` | Clés PayTech absentes sur Railway |
-| 503 | `PAYMENT_TIMEOUT` | PayTech a refusé — lire `details.paytechMessage` |
+| 503 | `PAYMENT_TIMEOUT` | PayTech a refusé — lire `details.paytechMessage` (ex. compte prod non activé chez PayTech) |
 
 Exemple réponse 503 détaillée :
 
@@ -473,7 +486,7 @@ Toujours lire le **`code`** dans le body JSON, pas seulement le statut HTTP.
 ## 9. Exemple client TypeScript
 
 ```ts
-const API = import.meta.env.VITE_API_URL;
+const API = import.meta.env.VITE_STRAPI_URL ?? import.meta.env.VITE_API_URL;
 
 type CheckoutSession = {
   checkoutId: string;

@@ -1,8 +1,8 @@
 import { ApiError, getApiErrorCode, toErrorMessage } from '../services/api/apiError';
 
 const CHECKOUT_ERROR_MESSAGES: Record<string, string> = {
-  PRODUCT_NOT_FOUND:
-    'Un produit du panier n’existe plus sur la boutique (identifiant invalide ou article retiré). Videz le panier et rajoutez vos articles.',
+  PRODUCT_NOT_FOUND: 'Ce produit n’est plus disponible. Retirez-le du panier et rajoutez-le depuis la boutique.',
+  VARIANT_NOT_FOUND: 'Le format choisi n’est plus disponible. Rechargez la page produit et sélectionnez à nouveau le format.',
   NOT_FOUND: 'Route checkout introuvable. Vérifiez VITE_STRAPI_URL (URL backend sans /api à la fin).',
   CHECKOUT_NOT_FOUND: 'Session de paiement introuvable. Recommencez depuis le panier.',
   CHECKOUT_EXPIRED: 'Votre session de paiement a expiré. Recommencez la commande.',

@@ -11,7 +11,13 @@ import { MediaImage } from '../components/ui/MediaImage';
 import { ProductCard } from '../features/catalog/components/ProductCard';
 import { useToast } from '../hooks/useToast';
 import type { UIProduct, UIProductVariant } from '../features/catalog/types';
-import { getDefaultVariant, stockForLine } from '../features/catalog/productUtils';
+import {
+  checkoutProductRef,
+  checkoutVariantRef,
+  getDefaultVariant,
+  stockForLine,
+  variantLineId,
+} from '../features/catalog/productUtils';
 import { useViewedProductsStore } from '../store/viewedProductsStore';
 import { useSeo } from '../hooks/useSeo';
 import { trackAddToCart, trackViewProduct } from '../services/analytics/tracking';
@@ -129,9 +135,12 @@ export const Product = () => {
       info('Les articles herboristerie sont réservés aux comptes professionnels.');
       return;
     }
-    const variantId = product.variants.length > 0 ? resolvedVariant?.id : undefined;
+    const variantId =
+      product.variants.length > 0 && resolvedVariant
+        ? checkoutVariantRef(product, variantLineId(resolvedVariant))
+        : undefined;
     if (product.variants.length > 0 && !variantId) return;
-    void addItem(product.id, { variantId, quantity });
+    void addItem(checkoutProductRef(product), { variantId, quantity });
     trackAddToCart({ ...product, price: effectivePrice }, quantity);
     success(`Ajouté au panier: ${product.name} x${quantity}`);
     setAdded(true);
@@ -144,7 +153,8 @@ export const Product = () => {
       return;
     }
     const def = getDefaultVariant(item);
-    void addItem(item.id, { variantId: def?.id, quantity: 1 });
+    const variantId = def ? checkoutVariantRef(item, variantLineId(def)) : undefined;
+    void addItem(checkoutProductRef(item), { variantId, quantity: 1 });
     trackAddToCart({ ...item, price: def?.price ?? item.price }, 1);
     success(`Ajouté au panier: ${item.name}`);
   };
@@ -346,16 +356,19 @@ export const Product = () => {
               <h3 className="text-sm font-bold uppercase tracking-wider text-[#1a1a1a]">Format</h3>
               <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-2">
                 {product.variants.map((variant) => {
-                  const active = resolvedVariant?.id === variant.id;
+                  const active = resolvedVariant
+                    ? variantLineId(resolvedVariant) === variantLineId(variant)
+                    : false;
                   const disabled = variant.inStock === false || (typeof variant.stockQty === 'number' && variant.stockQty <= 0);
                   const label = variant.label ?? variant.format ?? variant.name ?? variant.size ?? 'Option';
                   const vPrice = variant.price ?? product.price;
                   return (
                     <button
-                      key={variant.id}
+                      key={variantLineId(variant)}
                       type="button"
                       disabled={disabled}
                       onClick={() => setSelectedVariant(variant)}
+                      aria-pressed={active}
                       className={`min-h-[48px] touch-manipulation rounded-[10px] border px-3 py-2.5 text-left text-sm transition-colors sm:px-4 ${
                         disabled
                           ? 'cursor-not-allowed border-gray-100 bg-gray-50 text-gray-400'

@@ -15,10 +15,12 @@ import { ProfessionalPriceHint } from '../components/catalog/ProfessionalPriceHi
 import { PaytechPaymentInfo } from '../features/checkout/components/PaytechPaymentInfo';
 import {
   checkoutProductRef,
-  checkoutVariantRef,
   findCatalogProduct,
+  resolveVariant,
   unitPriceForLine,
 } from '../features/catalog/productUtils';
+import { buildCheckoutLinesFromCart } from '../lib/checkoutLine';
+import { validateInitAgainstCart } from '../lib/checkoutInitValidation';
 import { useReconcileCartWhenReady } from '../hooks/useReconcileCartWhenReady';
 import { ApiError, getApiErrorCode } from '../services/api/apiError';
 import { confirmCheckout, initCheckout } from '../services/api/commerceApi';
@@ -211,20 +213,18 @@ export const Checkout = () => {
       }
 
       const access = getCheckoutAccess();
-      const lines = useCartStore.getState().items;
-      const payableProducts = lines
-        .map((item) => {
-          const product = findCatalogProduct(products, item.productId);
-          if (!product || !canPurchaseProduct(product)) return null;
-          const line: { productId: string; quantity: number; variantId?: string } = {
-            productId: checkoutProductRef(product),
-            quantity: item.quantity,
-          };
-          const variantRef = checkoutVariantRef(product, item.variantId);
-          if (variantRef) line.variantId = variantRef;
-          return line;
-        })
-        .filter((line): line is NonNullable<typeof line> => Boolean(line));
+      const cartLines = useCartStore.getState().items.filter((item) => {
+        const product = findCatalogProduct(products, item.productId);
+        return product && canPurchaseProduct(product);
+      });
+      const { lines: payableProducts, skipped } = buildCheckoutLinesFromCart(products, cartLines);
+
+      if (skipped.length > 0) {
+        const msg = `Format ou produit manquant pour : ${skipped.join(', ')}. Ouvrez la fiche produit, choisissez le format (250g / 50g), puis réessayez.`;
+        setFormError(msg);
+        toastError(msg);
+        return;
+      }
 
       if (payableProducts.length === 0) {
         const msg = 'Aucun article valide pour le paiement. Videz le panier et rajoutez vos produits.';
@@ -232,6 +232,12 @@ export const Checkout = () => {
         toastError(msg);
         return;
       }
+
+      const pricedLines = purchasableLines.map((item) => ({
+        name: item.name,
+        unitPrice: item.unitPrice,
+        quantity: item.quantity,
+      }));
 
       const init = await initCheckout(
         {
@@ -246,6 +252,14 @@ export const Checkout = () => {
       const checkoutId = init.checkoutId ?? init.checkout_session_id;
       if (!checkoutId) {
         throw new Error('Checkout backend introuvable après initialisation.');
+      }
+
+      const pricingMismatch = validateInitAgainstCart(init, pricedLines, subtotal);
+      if (pricingMismatch) {
+        setFormError(pricingMismatch);
+        toastError(pricingMismatch);
+        trackCheckoutPaymentFailed('incomplete');
+        return;
       }
 
       const checkoutAccess = {
@@ -448,8 +462,10 @@ export const Checkout = () => {
                     <p className="text-sm text-gray-500">Panier vide. Retournez au panier pour ajouter des articles.</p>
                   ) : (
                     <div className="space-y-3">
-                      {cartProducts.map((item) => {
+                      {purchasableLines.map((item) => {
                         const hideLinePrice = shouldHidePrice(item);
+                        const variant = resolveVariant(item, item.variantId);
+                        const variantLabel = variant?.label ?? variant?.format ?? variant?.name;
                         return (
                           <div
                             key={`${item.storeProductId}-${item.variantId ?? ''}`}
@@ -457,8 +473,7 @@ export const Checkout = () => {
                           >
                             <span>
                               {item.name}
-                              {item.variantId ? ` (${item.variants.find((v) => v.id === item.variantId)?.label ?? ''})` : ''}{' '}
-                              x{item.quantity}
+                              {variantLabel ? ` (${variantLabel})` : ''} x{item.quantity}
                             </span>
                             {hideLinePrice ? (
                               <span className="text-xs font-semibold text-[#7d755f]">Prix pro</span>

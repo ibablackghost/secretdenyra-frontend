@@ -156,6 +156,7 @@ function mapProduct(entity: StrapiEntity<StrapiProduct>): UIProduct | null {
     size?: string;
     colorName?: string;
     colorHex?: string;
+    sku?: string;
     price?: number;
     compareAtPrice?: number;
     stockQty?: number;
@@ -166,10 +167,19 @@ function mapProduct(entity: StrapiEntity<StrapiProduct>): UIProduct | null {
       const label = getString(readField(variantEntity, 'label'));
       const size = getString(readField(variantEntity, 'size'));
       const colorName = getString(readField(variantEntity, 'colorName'));
-      const id = String(variantEntity.id ?? label ?? size ?? colorName ?? '');
+      const veRecord = variantEntity as Record<string, unknown>;
+      const documentId =
+        getString(veRecord.documentId) || getString(readField(variantEntity, 'documentId')) || undefined;
+      const strapiId =
+        variantEntity.id != null && variantEntity.id !== '' ? String(variantEntity.id) : undefined;
+      const sku = getString(readField(variantEntity, 'sku')) || undefined;
+      const id = documentId ?? strapiId ?? sku ?? label ?? size ?? colorName ?? '';
       if (!id) return null;
       return {
         id,
+        documentId,
+        strapiId,
+        sku,
         label: label || size || colorName || 'Variante',
         size: size || undefined,
         colorName: colorName || undefined,
@@ -187,10 +197,16 @@ function mapProduct(entity: StrapiEntity<StrapiProduct>): UIProduct | null {
     })
     .filter(Boolean) as UIProductVariant[];
   const mainImage = buildMediaUrl(readField(entity, 'image'));
+  const entityRecord = entity as Record<string, unknown>;
+  const documentId =
+    getString(entityRecord.documentId) || getString(readField(entity, 'documentId')) || undefined;
+  const strapiId = entity.id != null && entity.id !== '' ? String(entity.id) : undefined;
 
   return {
     id: slug,
     slug,
+    documentId,
+    strapiId,
     name,
     ingredients: getString(readField(entity, 'ingredients')),
     price: getNumber(readField(entity, 'price')),

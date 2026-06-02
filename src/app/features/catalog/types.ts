@@ -5,7 +5,10 @@ export type UICategory = {
 };
 
 export type UIProductVariant = {
+  /** Id stable pour panier / checkout (documentId Strapi si disponible). */
   id: string;
+  documentId?: string;
+  strapiId?: string;
   label: string;
   name?: string;
   sku?: string;
@@ -26,6 +29,8 @@ export type UIProductVariant = {
 export type UIProduct = {
   id: string;
   slug: string;
+  documentId?: string;
+  strapiId?: string;
   name: string;
   ingredients: string;
   shortDescription?: string | null;

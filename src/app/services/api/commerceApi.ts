@@ -322,6 +322,17 @@ export type CheckoutInitResponse = {
   checkout_session_id?: string;
   /** Jeton pour les appels checkout invité (header X-Checkout-Token) */
   guestToken?: string;
+  subtotal?: number;
+  shipping?: number;
+  total?: number;
+  currency?: string;
+  items?: Array<{
+    quantity?: number;
+    unitPrice?: number;
+    lineTotal?: number;
+    product?: { slug?: string; name?: string };
+    variant?: { label?: string; format?: string; price?: number };
+  }>;
 };
 
 export async function initCheckout(input: CheckoutInitInput, access: CheckoutAccess = {}) {
