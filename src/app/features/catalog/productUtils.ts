@@ -38,6 +38,12 @@ export function getCatalogPriceRange(products: UIProduct[]): { min: number; max:
   return { min: min === Infinity ? 0 : min, max: Math.max(cap, 10_000) };
 }
 
+/** Slugs catégorie « Thé bio » (URL shop + variantes Strapi). */
+export function isBioTeaProduct(product: Pick<UIProduct, 'category'>): boolean {
+  const s = product.category.slug;
+  return s === 'thes-bio' || s === 'nos-thes-bio' || s === 'the-bio';
+}
+
 export function findCatalogProduct(products: UIProduct[], storedRef: string): UIProduct | undefined {
   const ref = storedRef.trim();
   if (!ref) return undefined;

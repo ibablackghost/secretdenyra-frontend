@@ -17,13 +17,22 @@ import {
   checkoutProductRef,
   checkoutVariantRef,
   getDefaultVariant,
+  isBioTeaProduct,
   unitPriceForLine,
   variantLineId,
 } from '../features/catalog/productUtils';
 
 const HOME_SECTION_PRODUCT_LIMIT = 4;
 
-const ProductGrid = ({ title, products }: { title: string; products: UIProduct[] }) => {
+const ProductGrid = ({
+  title,
+  products,
+  viewAllHref = '/shop',
+}: {
+  title: string;
+  products: UIProduct[];
+  viewAllHref?: string;
+}) => {
   const { addItem } = useCartStore();
   const toggleWishlist = useWishlistStore((s) => s.toggle);
   const isWishlisted = useWishlistStore((s) => s.isWishlisted);
@@ -46,7 +55,7 @@ const ProductGrid = ({ title, products }: { title: string; products: UIProduct[]
     <section className="max-w-[1400px] mx-auto px-4 md:px-8 py-16">
       <div className="flex justify-between items-end mb-12">
         <h2 className="font-['Mulish',sans-serif] text-2xl md:text-3xl font-semibold text-[#303030]">{title}</h2>
-        <Link to="/shop" className="text-[#313131] font-medium flex items-center gap-2 hover:text-[#a4a374] transition-colors text-sm">
+        <Link to={viewAllHref} className="text-[#313131] font-medium flex items-center gap-2 hover:text-[#a4a374] transition-colors text-sm">
           Voir tous les produits <ArrowRight className="w-4 h-4" />
         </Link>
       </div>
@@ -80,7 +89,7 @@ export const Home = () => {
         homeViewed: [] as UIProduct[],
       };
     }
-    const homeFavorites = products.slice(0, lim);
+    const homeFavorites = products.filter(isBioTeaProduct).slice(0, lim);
     const homeBestsellers = [...products].sort((a, b) => b.rating - a.rating).slice(0, lim);
     const homePopular = [...products].sort((a, b) => (b.reviews ?? 0) - (a.reviews ?? 0)).slice(0, lim);
     const homeViewed = viewedIds
@@ -136,7 +145,11 @@ export const Home = () => {
           <ErrorState message={error} className="py-4" />
         </section>
       ) : (
-        <ProductGrid title="Les favoris de nos clients" products={homeFavorites} />
+        <ProductGrid
+          title="Les favoris de nos clients"
+          products={homeFavorites}
+          viewAllHref="/shop/category/thes-bio"
+        />
       )}
 
       {/* Tea Family Tags */}
