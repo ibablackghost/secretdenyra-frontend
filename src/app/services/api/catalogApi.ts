@@ -154,6 +154,7 @@ function mapProduct(entity: StrapiEntity<StrapiProduct>): UIProduct | null {
   const variantEntities = unwrapEntityList<{
     label?: string;
     size?: string;
+    format?: string;
     colorName?: string;
     colorHex?: string;
     sku?: string;
@@ -166,6 +167,7 @@ function mapProduct(entity: StrapiEntity<StrapiProduct>): UIProduct | null {
     .map((variantEntity) => {
       const label = getString(readField(variantEntity, 'label'));
       const size = getString(readField(variantEntity, 'size'));
+      const format = getString(readField(variantEntity, 'format'));
       const colorName = getString(readField(variantEntity, 'colorName'));
       const veRecord = variantEntity as Record<string, unknown>;
       const documentId =
@@ -181,6 +183,8 @@ function mapProduct(entity: StrapiEntity<StrapiProduct>): UIProduct | null {
         strapiId,
         sku,
         label: label || size || colorName || 'Variante',
+        name: label || undefined,
+        format: format || undefined,
         size: size || undefined,
         colorName: colorName || undefined,
         colorHex: getString(readField(variantEntity, 'colorHex')) || undefined,

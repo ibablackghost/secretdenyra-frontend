@@ -8,6 +8,11 @@ import { useCatalog } from '../lib/useCatalog';
 import { EmptyState, ErrorState, LoadingState } from '../components/ui/AsyncState';
 import { ProductCard } from '../features/catalog/components/ProductCard';
 import { ShopFiltersPanel } from '../features/catalog/components/ShopFiltersPanel';
+import {
+  collectCatalogFormats,
+  productHasFormat,
+  productMatchesEffect,
+} from '../features/catalog/shopFilters';
 import { useToast } from '../hooks/useToast';
 import type { UIProduct } from '../features/catalog/types';
 import { useSeo } from '../hooks/useSeo';
@@ -69,6 +74,8 @@ export const Shop = () => {
   const { categorySlug } = useParams();
   const categoryFilter = categorySlug ?? searchParams.get('category') ?? '';
   const teaFamilyTagFilter = searchParams.get('teaTag') ?? '';
+  const effectFilter = searchParams.get('effect') ?? '';
+  const formatFilter = searchParams.get('format') ?? '';
   const searchQuery = (searchParams.get('q') ?? '').trim();
   const sortBy = searchParams.get('sort') ?? 'popular';
   const { products, categories, tags, loading, error } = useCatalog();
@@ -150,7 +157,7 @@ export const Shop = () => {
     );
   }, [searchParams, setSearchParams]);
 
-  const filteredProducts = useMemo(() => {
+  const productsForFormatOptions = useMemo(() => {
     let result = [...products];
 
     if (categoryFilter) {
@@ -165,6 +172,22 @@ export const Shop = () => {
       result = result.filter((p) => productMatchesQuery(p, searchQuery));
     }
 
+    if (effectFilter) {
+      result = result.filter((p) => productMatchesEffect(p, effectFilter));
+    }
+
+    return result;
+  }, [categoryFilter, teaFamilyTagFilter, searchQuery, effectFilter, products]);
+
+  const availableFormats = useMemo(() => collectCatalogFormats(productsForFormatOptions), [productsForFormatOptions]);
+
+  const filteredProducts = useMemo(() => {
+    let result = [...productsForFormatOptions];
+
+    if (formatFilter) {
+      result = result.filter((p) => productHasFormat(p, formatFilter));
+    }
+
     if (sortBy === 'price-low') {
       result.sort((a, b) => getCatalogListPrice(a) - getCatalogListPrice(b));
     } else if (sortBy === 'price-high') {
@@ -174,7 +197,7 @@ export const Shop = () => {
     }
 
     return result;
-  }, [categoryFilter, teaFamilyTagFilter, searchQuery, sortBy, products]);
+  }, [productsForFormatOptions, formatFilter, sortBy]);
 
   const totalItems = filteredProducts.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
@@ -218,6 +241,8 @@ export const Shop = () => {
     updateQuery({
       category: null,
       teaTag: null,
+      effect: null,
+      format: null,
       q: null,
       sort: 'popular',
       page: '1',
@@ -225,7 +250,7 @@ export const Shop = () => {
     });
   };
 
-  const activeFilterCount = [categoryFilter, teaFamilyTagFilter].filter(Boolean).length;
+  const activeFilterCount = [categoryFilter, teaFamilyTagFilter, effectFilter, formatFilter].filter(Boolean).length;
 
   useEffect(() => {
     if (!filtersOpen) return;
@@ -262,6 +287,9 @@ export const Shop = () => {
           tags={tags}
           categoryFilter={categoryFilter}
           teaFamilyTagFilter={teaFamilyTagFilter}
+          effectFilter={effectFilter}
+          formatFilter={formatFilter}
+          availableFormats={availableFormats}
           onUpdate={updateQuery}
           onReset={resetFilters}
         />
@@ -466,6 +494,9 @@ export const Shop = () => {
                 tags={tags}
                 categoryFilter={categoryFilter}
                 teaFamilyTagFilter={teaFamilyTagFilter}
+                effectFilter={effectFilter}
+                formatFilter={formatFilter}
+                availableFormats={availableFormats}
                 onUpdate={updateQuery}
                 onReset={() => {
                   resetFilters();

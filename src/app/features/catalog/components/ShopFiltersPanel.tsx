@@ -1,4 +1,8 @@
 import { RotateCcw, SlidersHorizontal } from 'lucide-react';
+import {
+  SHOP_EFFECT_FILTERS,
+  type ShopFormatOption,
+} from '../shopFilters';
 import type { UICategory, UITag } from '../types';
 
 type ShopFiltersPanelProps = {
@@ -6,6 +10,9 @@ type ShopFiltersPanelProps = {
   tags: UITag[];
   categoryFilter: string;
   teaFamilyTagFilter: string;
+  effectFilter: string;
+  formatFilter: string;
+  availableFormats: ShopFormatOption[];
   onUpdate: (entries: Record<string, string | null>) => void;
   onReset: () => void;
   onFilterApplied?: () => void;
@@ -17,6 +24,9 @@ export function ShopFiltersPanel({
   tags,
   categoryFilter,
   teaFamilyTagFilter,
+  effectFilter,
+  formatFilter,
+  availableFormats,
   onUpdate,
   onReset,
   onFilterApplied,
@@ -25,6 +35,14 @@ export function ShopFiltersPanel({
   const apply = (entries: Record<string, string | null>) => {
     onUpdate(entries);
     onFilterApplied?.();
+  };
+
+  const toggleEffect = (slug: string) => {
+    apply({ effect: effectFilter === slug ? null : slug, page: '1' });
+  };
+
+  const toggleFormat = (key: string) => {
+    apply({ format: formatFilter === key ? null : key, page: '1' });
   };
 
   return (
@@ -48,65 +66,63 @@ export function ShopFiltersPanel({
 
       <div className="space-y-4">
         <h3 className="font-bold text-lg text-[#1a1a1a] font-['Mulish',sans-serif]">Effets recherchés</h3>
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            className="w-10 h-10 rounded-full bg-[#f4e79b] border-2 border-transparent focus:border-black hover:scale-110 transition-transform shadow-sm flex items-center justify-center group relative"
-          >
-            <span className="absolute -top-8 bg-black text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-              Énergie
-            </span>
-          </button>
-          <button
-            type="button"
-            className="w-10 h-10 rounded-full bg-[#8bb587] border-2 border-transparent focus:border-black hover:scale-110 transition-transform shadow-sm flex items-center justify-center group relative"
-          >
-            <span className="absolute -top-8 bg-black text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-              Sommeil
-            </span>
-          </button>
-          <button
-            type="button"
-            className="w-10 h-10 rounded-full bg-[#527d5e] border-2 border-transparent focus:border-black hover:scale-110 transition-transform shadow-sm flex items-center justify-center group relative"
-          >
-            <span className="absolute -top-8 bg-black text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-              Digestion
-            </span>
-          </button>
-          <button
-            type="button"
-            className="w-10 h-10 rounded-full bg-[#272824] border-2 border-transparent focus:border-black hover:scale-110 transition-transform shadow-sm flex items-center justify-center group relative"
-          >
-            <span className="absolute -top-8 bg-black text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-              Détox
-            </span>
-          </button>
+        <div className="flex items-center gap-3 flex-wrap">
+          {SHOP_EFFECT_FILTERS.map((effect) => {
+            const selected = effectFilter === effect.slug;
+            return (
+              <button
+                key={effect.slug}
+                type="button"
+                onClick={() => toggleEffect(effect.slug)}
+                aria-pressed={selected}
+                aria-label={`Filtrer par ${effect.label}`}
+                className={`w-10 h-10 rounded-full border-2 shadow-sm flex items-center justify-center group relative transition-transform hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 ${
+                  selected ? 'border-black scale-110' : 'border-transparent'
+                }`}
+                style={{ backgroundColor: effect.color }}
+              >
+                <span className="absolute -top-8 bg-black text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
+                  {effect.label}
+                </span>
+              </button>
+            );
+          })}
         </div>
+        {effectFilter ? (
+          <p className="text-xs text-gray-500">
+            Effet actif :{' '}
+            <span className="font-semibold text-[#1a1a1a]">
+              {SHOP_EFFECT_FILTERS.find((item) => item.slug === effectFilter)?.label ?? effectFilter}
+            </span>
+          </p>
+        ) : null}
       </div>
 
-      <div className="space-y-4">
-        <h3 className="font-bold text-lg text-[#1a1a1a] font-['Mulish',sans-serif]">Format</h3>
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            className="h-10 px-4 flex items-center justify-center border border-gray-200 rounded-[8px] text-sm font-medium text-gray-600 hover:border-black focus:border-black focus:text-black transition-colors"
-          >
-            Vrac 50g
-          </button>
-          <button
-            type="button"
-            className="h-10 px-4 flex items-center justify-center border-2 border-black rounded-[8px] text-sm font-bold text-black transition-colors"
-          >
-            Vrac 100g
-          </button>
-          <button
-            type="button"
-            className="h-10 px-4 flex items-center justify-center border border-gray-200 rounded-[8px] text-sm font-medium text-gray-600 hover:border-black focus:border-black focus:text-black transition-colors"
-          >
-            Boîte 20s
-          </button>
+      {availableFormats.length > 0 ? (
+        <div className="space-y-4">
+          <h3 className="font-bold text-lg text-[#1a1a1a] font-['Mulish',sans-serif]">Format</h3>
+          <div className="flex flex-wrap gap-2">
+            {availableFormats.map((format) => {
+              const selected = formatFilter === format.key;
+              return (
+                <button
+                  key={format.key}
+                  type="button"
+                  onClick={() => toggleFormat(format.key)}
+                  aria-pressed={selected}
+                  className={`h-10 px-4 flex items-center justify-center rounded-[8px] text-sm transition-colors ${
+                    selected
+                      ? 'border-2 border-black font-bold text-black'
+                      : 'border border-gray-200 font-medium text-gray-600 hover:border-black focus:border-black focus:text-black'
+                  }`}
+                >
+                  {format.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      ) : null}
 
       <div className="space-y-4">
         <h3 className="font-bold text-lg text-[#1a1a1a] font-['Mulish',sans-serif]">Catégories</h3>
