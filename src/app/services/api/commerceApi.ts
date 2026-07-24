@@ -86,10 +86,41 @@ export type RemotePurchasedProductItem = {
 };
 
 export type CheckoutInitInput = {
-  customer: { fullName: string; phone: string; email?: string };
-  shippingAddress: { address: string } | string;
+  customer: {
+    fullName?: string;
+    firstName?: string;
+    lastName?: string;
+    phone: string;
+    email?: string;
+  };
+  shippingAddress:
+    | string
+    | {
+        address?: string;
+        line1?: string;
+        line2?: string;
+        city?: string;
+        region?: string;
+        postalCode?: string;
+        country?: string;
+      };
+  billingAddress?: {
+    address?: string;
+    line1?: string;
+    line2?: string;
+    city?: string;
+    region?: string;
+    postalCode?: string;
+    country?: string;
+  };
   billingSameAsShipping?: boolean;
-  items: Array<{ productDocumentId: string; quantity: number; variantDocumentId?: string }>;
+  items: Array<{
+    productId: string;
+    quantity: number;
+    variantId?: string;
+    productDocumentId?: string;
+    variantDocumentId?: string;
+  }>;
 };
 
 export async function getCart(token: string) {

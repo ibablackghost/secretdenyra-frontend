@@ -254,14 +254,40 @@ export const Checkout = () => {
       }));
 
       const emailTrimmed = customer.email.trim();
+      const fullName = customer.fullName.trim();
+      const nameParts = fullName.split(/\s+/).filter(Boolean);
+      const firstName = nameParts[0] ?? fullName;
+      const lastName = nameParts.slice(1).join(' ') || firstName;
+      const address = shipping.address.trim();
+      const phone = normalizeSnPhone(customer.phone);
+
       const init = await initCheckout(
         {
           customer: {
-            fullName: customer.fullName.trim(),
-            phone: normalizeSnPhone(customer.phone),
-            ...(emailTrimmed ? { email: emailTrimmed } : {}),
+            fullName,
+            firstName,
+            lastName,
+            phone,
+            ...(emailTrimmed ? { email: emailTrimmed } : { email: `${phone}@guest.secretdenyra.com` }),
           },
-          shippingAddress: { address: shipping.address.trim() },
+          shippingAddress: {
+            address,
+            line1: address,
+            line2: '',
+            city: 'Dakar',
+            region: '',
+            postalCode: '',
+            country: 'SN',
+          },
+          billingAddress: {
+            address,
+            line1: address,
+            line2: '',
+            city: 'Dakar',
+            region: '',
+            postalCode: '',
+            country: 'SN',
+          },
           billingSameAsShipping: true,
           items: payableProducts,
         },
