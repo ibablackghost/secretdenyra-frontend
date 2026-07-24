@@ -131,7 +131,7 @@ export const Checkout = () => {
     () => purchasableLines.reduce((acc, item) => acc + item.unitPrice * item.quantity, 0),
     [purchasableLines]
   );
-  const shippingFee = subtotal > 45000 || subtotal === 0 ? 0 : 2500;
+  const shippingFee = subtotal > 45000 || subtotal === 0 ? 0 : 10;
   const total = subtotal + shippingFee;
 
   useEffect(() => {

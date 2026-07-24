@@ -85,7 +85,7 @@ export const Cart = () => {
   const hasLockedHerboristerie = lockedHerboristerieLines.length > 0;
 
   const subtotal = purchasableLines.reduce((acc, item) => acc + item.unitPrice * item.quantity, 0);
-  const shipping = subtotal > 45000 || subtotal === 0 ? 0 : 2500;
+  const shipping = subtotal > 45000 || subtotal === 0 ? 0 : 10;
   const total = subtotal + shipping;
 
   const handleRemove = (lineKey: string, productName: string) => {
