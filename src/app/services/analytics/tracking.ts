@@ -149,7 +149,7 @@ export function trackCheckoutStepComplete(step: number, stepLabel: string) {
   );
 }
 
-export function trackCheckoutPaymentFailed(reason: 'declined' | 'timeout' | 'incomplete') {
+export function trackCheckoutPaymentFailed(reason: 'declined' | 'timeout' | 'incomplete' | 'api_error') {
   trackEvent('checkout_payment_failed', { reason });
 }
 

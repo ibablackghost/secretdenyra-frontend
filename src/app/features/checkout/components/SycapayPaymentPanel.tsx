@@ -4,7 +4,6 @@ import {
   SYCAPAY_OPERATORS,
   type SycapayOperator,
 } from '../../../services/payment/sycapayTypes';
-import { NyraInput, NyraLabel } from '../../../components/form/NyraField';
 
 const OPERATOR_LOGOS: Record<SycapayOperator, string> = {
   wave: waveLogo,
@@ -14,16 +13,15 @@ const OPERATOR_LOGOS: Record<SycapayOperator, string> = {
 type Props = {
   operator: SycapayOperator;
   onOperatorChange: (operator: SycapayOperator) => void;
-  phone: string;
-  onPhoneChange: (phone: string) => void;
+  /** Téléphone client (déjà saisi) — réutilisé comme numeroBeneficiaire. */
+  phoneDisplay: string;
   qrCode?: string | null;
 };
 
 export function SycapayPaymentPanel({
   operator,
   onOperatorChange,
-  phone,
-  onPhoneChange,
+  phoneDisplay,
   qrCode,
 }: Props) {
   return (
@@ -60,20 +58,9 @@ export function SycapayPaymentPanel({
         </div>
       </div>
 
-      <div>
-        <NyraLabel htmlFor="sycapay-phone">Numéro pour le paiement</NyraLabel>
-        <NyraInput
-          id="sycapay-phone"
-          type="tel"
-          inputMode="tel"
-          autoComplete="tel"
-          placeholder="77 123 45 67"
-          value={phone}
-          onChange={(e) => onPhoneChange(e.target.value)}
-        />
-        <p className="mt-1.5 text-xs text-gray-500">
-          Numéro Wave ou Orange Money utilisé pour payer (Sénégal).
-        </p>
+      <div className="rounded-[12px] border border-gray-100 bg-gray-50 px-3 py-2 text-sm text-gray-600">
+        Paiement sur le numéro{' '}
+        <span className="font-semibold text-[#1a1a1a]">+221 {phoneDisplay || '—'}</span>
       </div>
 
       {qrCode ? (

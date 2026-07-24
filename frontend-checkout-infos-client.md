@@ -20,6 +20,18 @@ Paiement Sycapay : [`frontend-checkout-sycapay.md`](./frontend-checkout-sycapay.
 
 **À ne PAS afficher / envoyer :** code postal, ville, pays, line2, prénom/nom séparés, adresse de facturation séparée, etc.
 
+### Téléphone — indicatif
+
+| Pays | Indicatif | Exemple saisie UI | Valeur envoyée à l’API |
+|------|-----------|-------------------|-------------------------|
+| **Sénégal** | **+221** | `77 123 45 67` | `771234567` (chiffres seuls, **sans** `+221`) |
+
+Règles :
+- Afficher l’indicatif **+221** (fixe / préfixe UI)
+- Envoyer uniquement le **numéro national** : 9 chiffres typiques (`77…`, `78…`, `76…`, `70…`)
+- Ne pas envoyer `+221771234567` sauf si le backend le normalise déjà (il strippe le non-numérique, donc `+22177…` devient `22177…` → **à éviter**)
+- Même numéro réutilisé pour Sycapay (`numeroBeneficiaire`)
+
 ---
 
 ## Body à envoyer

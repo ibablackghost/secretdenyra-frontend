@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { ArrowLeft, ArrowRight, AlertTriangle } from 'lucide-react';
 import { NyraButton, NyraFormError, NyraInput, NyraLabel } from '../components/form/NyraField';
+import { isSnPhoneValid, normalizeSnPhone, SnPhoneInput } from '../components/form/SnPhoneInput';
 import { useCheckoutStore } from '../store/checkoutStore';
 import { useToast } from '../hooks/useToast';
 import { useCartStore } from '../store/cartStore';
@@ -55,30 +56,12 @@ function isEmailValid(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 }
 
-/** Normalise un numéro SN pour Sycapay (chiffres seuls, sans indicatif). */
-function normalizeSnPhone(raw: string): string {
-  let digits = raw.replace(/\D/g, '');
-  if (digits.startsWith('221') && digits.length > 9) {
-    digits = digits.slice(3);
-  }
-  if (digits.startsWith('0') && digits.length === 10) {
-    digits = digits.slice(1);
-  }
-  return digits;
-}
-
-function isSnPhoneValid(raw: string) {
-  const digits = normalizeSnPhone(raw);
-  return /^7\d{8}$/.test(digits);
-}
-
 export const Checkout = () => {
   const { success, error: toastError, info } = useToast();
   const [step, setStep] = useState<Step>(1);
   const [formError, setFormError] = useState('');
   const [isPaying, setIsPaying] = useState(false);
   const [operator, setOperator] = useState<SycapayOperator>('wave');
-  const [paymentPhone, setPaymentPhone] = useState('');
   const [activeQrCode, setActiveQrCode] = useState<string | null>(null);
 
   const cartItems = useCartStore((s) => s.items);
@@ -92,12 +75,6 @@ export const Checkout = () => {
   useReconcileCartWhenReady(false);
 
   const { customer, shipping, updateCustomer, updateShipping } = useCheckoutStore();
-
-  useEffect(() => {
-    if (!paymentPhone.trim() && customer.phone.trim()) {
-      setPaymentPhone(customer.phone);
-    }
-  }, [customer.phone, paymentPhone]);
 
   const cartProducts = useMemo(
     () =>
@@ -159,7 +136,6 @@ export const Checkout = () => {
       toastError(stepError);
       return;
     }
-    if (!paymentPhone.trim()) setPaymentPhone(customer.phone);
     setStep(2);
     trackCheckoutStepComplete(1, STEP_LABELS[1]);
     info('Informations enregistrées. Choisissez votre moyen de paiement.');
@@ -174,13 +150,6 @@ export const Checkout = () => {
       setFormError(infoError);
       toastError(infoError);
       setStep(1);
-      return;
-    }
-
-    if (!isSnPhoneValid(paymentPhone)) {
-      const msg = 'Indiquez le numéro Wave ou Orange Money pour le paiement.';
-      setFormError(msg);
-      toastError(msg);
       return;
     }
 
@@ -255,9 +224,6 @@ export const Checkout = () => {
 
       const emailTrimmed = customer.email.trim();
       const fullName = customer.fullName.trim();
-      const nameParts = fullName.split(/\s+/).filter(Boolean);
-      const firstName = nameParts[0] ?? fullName;
-      const lastName = nameParts.slice(1).join(' ') || firstName;
       const address = shipping.address.trim();
       const phone = normalizeSnPhone(customer.phone);
 
@@ -265,29 +231,10 @@ export const Checkout = () => {
         {
           customer: {
             fullName,
-            firstName,
-            lastName,
             phone,
-            ...(emailTrimmed ? { email: emailTrimmed } : { email: `${phone}@guest.secretdenyra.com` }),
+            ...(emailTrimmed ? { email: emailTrimmed } : {}),
           },
-          shippingAddress: {
-            address,
-            line1: address,
-            line2: '',
-            city: 'Dakar',
-            region: '',
-            postalCode: '',
-            country: 'SN',
-          },
-          billingAddress: {
-            address,
-            line1: address,
-            line2: '',
-            city: 'Dakar',
-            region: '',
-            postalCode: '',
-            country: 'SN',
-          },
+          shippingAddress: { address },
           billingSameAsShipping: true,
           items: payableProducts,
         },
@@ -319,7 +266,7 @@ export const Checkout = () => {
           checkoutId,
           {
             codeService: codeServiceForOperator(operator),
-            numeroBeneficiaire: normalizeSnPhone(paymentPhone),
+            numeroBeneficiaire: phone,
           },
           checkoutAccess
         );
@@ -447,15 +394,14 @@ export const Checkout = () => {
 
             <div>
               <NyraLabel htmlFor="co-phone">Téléphone</NyraLabel>
-              <NyraInput
+              <SnPhoneInput
                 id="co-phone"
-                type="tel"
-                inputMode="tel"
-                autoComplete="tel"
-                placeholder="77 123 45 67"
                 value={customer.phone}
-                onChange={(e) => updateCustomer({ phone: e.target.value })}
+                onChange={(phone) => updateCustomer({ phone })}
               />
+              <p id="co-phone-hint" className="mt-1.5 text-xs text-gray-500">
+                Indicatif Sénégal +221 — saisissez les 9 chiffres (ex. 77 123 45 67).
+              </p>
             </div>
 
             <div>
@@ -493,7 +439,7 @@ export const Checkout = () => {
           <div className="space-y-6">
             <h1 className="text-2xl font-bold text-[#1a1a1a]">Récapitulatif & paiement</h1>
             <p className="text-sm text-gray-500">
-              {customer.fullName} — {customer.phone}
+              {customer.fullName} — +221 {normalizeSnPhone(customer.phone)}
               {customer.email ? ` — ${customer.email}` : ''}
             </p>
             <p className="text-sm text-gray-500">Livraison : {shipping.address}</p>
@@ -559,8 +505,7 @@ export const Checkout = () => {
                   <SycapayPaymentPanel
                     operator={operator}
                     onOperatorChange={setOperator}
-                    phone={paymentPhone}
-                    onPhoneChange={setPaymentPhone}
+                    phoneDisplay={normalizeSnPhone(customer.phone)}
                     qrCode={activeQrCode}
                   />
                 </section>
