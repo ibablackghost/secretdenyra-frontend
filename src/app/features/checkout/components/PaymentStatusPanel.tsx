@@ -2,11 +2,11 @@ import { AlertTriangle, CheckCircle2, Clock3, ExternalLink, Loader2 } from 'luci
 import {
   isPaymentTerminal,
   paymentStatusLabel,
-  type PaytechPaymentStatus,
-} from '../../../services/payment/paytechTypes';
+  type PaymentStatus,
+} from '../../../services/payment/sycapayTypes';
 
 type Props = {
-  status: PaytechPaymentStatus | null;
+  status: PaymentStatus | null;
   isPolling: boolean;
   errorMessage?: string | null;
   redirectUrl?: string | null;
@@ -42,7 +42,7 @@ export function PaymentStatusPanel({ status, isPolling, errorMessage, redirectUr
             {status ? paymentStatusLabel(status) : 'Vérification du paiement…'}
           </p>
           {isPolling && !terminal ? (
-            <p className="text-xs opacity-90">Confirmation en cours avec PayTech.</p>
+            <p className="text-xs opacity-90">Confirmation en cours avec Sycapay.</p>
           ) : null}
           {errorMessage ? <p className="text-xs font-medium">{errorMessage}</p> : null}
           {redirectUrl && !success ? (
@@ -50,7 +50,7 @@ export function PaymentStatusPanel({ status, isPolling, errorMessage, redirectUr
               href={redirectUrl}
               className="inline-flex items-center gap-1 font-semibold underline"
             >
-              Reprendre le paiement PayTech <ExternalLink className="h-3.5 w-3.5" />
+              Reprendre le paiement <ExternalLink className="h-3.5 w-3.5" />
             </a>
           ) : null}
         </div>

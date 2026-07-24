@@ -9,14 +9,17 @@ Boutique e-commerce (Vite + React + React Router + Tailwind v4), à partir du bu
 
 ## Structure
 
-- `src/app/App.tsx` — point d’entrée de l’application (routeur).
-- `src/app/routes.tsx` — routes : `/`, `/shop`, `/product/:id`, `/cart`, `/login`, `/register`, `/account` (protégé), `/wishlist`.
-- `src/app/pages/` — pages : accueil, boutique, fiche produit, panier.
-- `src/app/data.ts` — produits et catégories (données locales ; à brancher sur Strapi plus tard).
-- `src/app/store/cartStore.ts` — état panier (Zustand).
+- `src/app/App.tsx` — hydratation des stores auth/commerce au login.
+- `src/app/routes.tsx` — routes : `/`, `/shop`, `/product/:slug`, `/cart`, `/checkout`, `/login`, `/register`, `/account` (protégé), `/wishlist`.
+- `src/app/pages/` — pages : accueil, boutique, fiche produit, panier, checkout, compte.
+- `src/app/services/api/` — client HTTP et appels Strapi (catalogue, auth, panier, checkout).
+- `src/app/store/` — état Zustand (panier, wishlist, checkout, commandes, adresses…).
+- `src/app/features/` — logique métier par domaine (catalogue, checkout, compte).
 - `src/app/components/layout/` — en-tête, pied de page, layout commun.
 - `src/assets/` — images référencées via les imports `figma:asset/...` (plugin Vite dans `vite.config.ts`).
 - `src/imports/` — visuel hero et autres exports du design.
+
+Variables d’environnement : `VITE_STRAPI_URL` (voir `docs/strapi-integration.md`).
 
 ## Commandes
 

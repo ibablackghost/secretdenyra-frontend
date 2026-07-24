@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { CheckoutAddress, CheckoutCustomer } from './checkoutStore';
 import { getOrders } from '../services/api/commerceApi';
 import { getStoredAuthToken } from '../services/api/session';
 
@@ -11,14 +10,32 @@ export type UserOrderItem = {
   quantity: number;
 };
 
+export type OrderCustomer = {
+  fullName?: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
+};
+
+export type OrderAddress = {
+  address?: string;
+  line1?: string;
+  line2?: string;
+  city?: string;
+  region?: string;
+  postalCode?: string;
+  country?: string;
+};
+
 export type UserOrder = {
   id: string;
   createdAt: string;
   status: 'paid' | 'pending' | 'failed' | 'refunded';
   paymentMethod: string;
-  customer: CheckoutCustomer;
-  shippingAddress: CheckoutAddress;
-  billingAddress: CheckoutAddress;
+  customer: OrderCustomer;
+  shippingAddress: OrderAddress;
+  billingAddress: OrderAddress;
   subtotal: number;
   shippingFee: number;
   total: number;

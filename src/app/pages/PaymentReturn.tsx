@@ -12,7 +12,7 @@ import {
   LAST_PAYMENT_ID_KEY,
 } from '../lib/checkoutAccess';
 import { confirmCheckout } from '../services/api/commerceApi';
-import { PAYMENT_METHOD_PAYTECH } from '../services/payment/paytechTypes';
+import { PAYMENT_METHOD_SYCAPAY } from '../services/payment/sycapayTypes';
 import { useCartStore } from '../store/cartStore';
 import { useToast } from '../hooks/useToast';
 
@@ -40,7 +40,7 @@ export const PaymentReturn = () => {
     try {
       await confirmCheckout(
         checkoutId,
-        { paymentMethod: PAYMENT_METHOD_PAYTECH, paymentId: paymentId ?? undefined },
+        { paymentMethod: PAYMENT_METHOD_SYCAPAY, paymentId: paymentId ?? undefined },
         access
       );
       await clearCart();
@@ -76,14 +76,14 @@ export const PaymentReturn = () => {
       return 'Paiement annulé. Vous pouvez réessayer depuis le panier.';
     }
     if (result === 'success' || status === 'SUCCESS') {
-      return 'Merci ! Votre paiement PayTech a été enregistré. Vous recevrez une confirmation par e-mail.';
+      return 'Merci ! Votre paiement a été enregistré. Vous recevrez une confirmation si un e-mail a été fourni.';
     }
-    return 'Retour depuis PayTech. Le statut de votre paiement est affiché ci-dessous.';
+    return 'Retour depuis le paiement. Le statut est affiché ci-dessous.';
   }, [result, status]);
 
   return (
     <div className="mx-auto max-w-lg px-4 py-16">
-      <h1 className="text-center text-2xl font-bold text-[#1a1a1a]">Paiement PayTech</h1>
+      <h1 className="text-center text-2xl font-bold text-[#1a1a1a]">Paiement</h1>
       <p className="mt-4 text-center text-gray-600">{message}</p>
 
       {paymentId && result !== 'cancel' && canPoll ? (

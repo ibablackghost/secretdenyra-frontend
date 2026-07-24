@@ -3,7 +3,7 @@ import { useAuthStore } from '../store/authStore';
 import { selectAwaitingPayments, usePendingPaymentsStore } from '../store/pendingPaymentsStore';
 import { getPaymentStatus } from '../services/api/paymentApi';
 import { confirmCheckout } from '../services/api/commerceApi';
-import { isPaymentTerminal, PAYMENT_METHOD_PAYTECH } from '../services/payment/paytechTypes';
+import { isPaymentTerminal, PAYMENT_METHOD_SYCAPAY } from '../services/payment/sycapayTypes';
 import { useOrderStore } from '../store/orderStore';
 import { usePurchasedProductsStore } from '../store/purchasedProductsStore';
 
@@ -33,12 +33,12 @@ export function usePendingPayments() {
         try {
           await confirmCheckout(
             current.checkoutId,
-            { paymentMethod: PAYMENT_METHOD_PAYTECH, paymentId },
+            { paymentMethod: PAYMENT_METHOD_SYCAPAY, paymentId },
             { token }
           );
           await Promise.all([hydrateOrders(), hydratePurchasedProducts()]);
         } catch {
-          // Commande peut déjà être confirmée via IPN PayTech.
+          // Commande peut déjà être confirmée via webhook Sycapay.
         }
       }
 

@@ -8,27 +8,32 @@ const CHECKOUT_ERROR_MESSAGES: Record<string, string> = {
   CHECKOUT_EXPIRED: 'Votre session de paiement a expiré. Recommencez la commande.',
   CART_EMPTY: 'Votre panier est vide.',
   OUT_OF_STOCK: 'Stock insuffisant pour au moins un article.',
-  INVALID_CUSTOMER_INFO: 'Vérifiez vos informations client (prénom, nom, téléphone, e-mail).',
-  INVALID_SHIPPING_ADDRESS: 'Vérifiez l’adresse de livraison (adresse, ville, pays).',
+  INVALID_CUSTOMER_INFO: 'Vérifiez vos informations (nom complet, téléphone, e-mail).',
+  INVALID_SHIPPING_ADDRESS: 'Vérifiez l’adresse de livraison.',
   INVALID_BILLING_ADDRESS: 'Vérifiez l’adresse de facturation.',
   UNAUTHORIZED: 'Session de paiement invalide. Recommencez depuis le panier.',
   PAYMENT_INFO_INCOMPLETE:
-    'Paiement temporairement indisponible (configuration PayTech côté serveur). Réessayez plus tard.',
+    'Paiement temporairement indisponible (configuration Sycapay côté serveur). Réessayez plus tard.',
   PAYMENT_DECLINED: 'Le paiement a été refusé.',
   PAYMENT_TIMEOUT: 'Paiement temporairement indisponible.',
 };
 
-function readPaytechMessage(error: ApiError): string | undefined {
+function readProviderMessage(error: ApiError): string | undefined {
   const root = error.details;
   if (!root || typeof root !== 'object') return undefined;
   const record = root as Record<string, unknown>;
   const nested = record.details;
   if (nested && typeof nested === 'object') {
-    const msg = (nested as Record<string, unknown>).paytechMessage;
-    if (typeof msg === 'string' && msg.trim()) return msg.trim();
+    const nestedRecord = nested as Record<string, unknown>;
+    for (const key of ['sycapayMessage', 'paytechMessage', 'message']) {
+      const msg = nestedRecord[key];
+      if (typeof msg === 'string' && msg.trim()) return msg.trim();
+    }
   }
-  const direct = record.paytechMessage;
-  if (typeof direct === 'string' && direct.trim()) return direct.trim();
+  for (const key of ['sycapayMessage', 'paytechMessage']) {
+    const direct = record[key];
+    if (typeof direct === 'string' && direct.trim()) return direct.trim();
+  }
   return undefined;
 }
 
@@ -39,14 +44,14 @@ function readBackendMessage(error: ApiError): string | undefined {
   return typeof msg === 'string' && msg.trim() ? msg.trim() : undefined;
 }
 
-/** Messages utilisateur pour init / paytech / confirm (voir frontend-checkout-api.md). */
+/** Messages utilisateur pour init / sycapay / confirm. */
 export function checkoutErrorMessage(error: unknown, fallback = 'Impossible de finaliser la commande.'): string {
   if (!(error instanceof ApiError)) return toErrorMessage(error, fallback);
 
   const code = getApiErrorCode(error);
-  if (code === 'PAYMENT_TIMEOUT') {
-    const paytech = readPaytechMessage(error);
-    if (paytech) return `Paiement indisponible : ${paytech}`;
+  if (code === 'PAYMENT_TIMEOUT' || code === '422' || error.status === 422) {
+    const provider = readProviderMessage(error);
+    if (provider) return `Paiement indisponible : ${provider}`;
   }
   if (code && CHECKOUT_ERROR_MESSAGES[code]) return CHECKOUT_ERROR_MESSAGES[code];
 

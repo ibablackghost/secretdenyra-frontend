@@ -4,6 +4,6 @@ export * from './api/apiError';
 export * from './api/authApi';
 export * from './api/commerceApi';
 export * from './api/paymentApi';
-export * from './payment/paytechTypes';
+export * from './payment/sycapayTypes';
 export * from './api/session';
 export * from './analytics/tracking';

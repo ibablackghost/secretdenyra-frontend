@@ -12,7 +12,7 @@ import { useOrderStore } from '../store/orderStore';
 import { usePurchasedProductsStore } from '../store/purchasedProductsStore';
 import { useHerboristeriePriceAccess } from '../hooks/useHerboristeriePriceAccess';
 import { ProfessionalPriceHint } from '../components/catalog/ProfessionalPriceHint';
-import { PaytechPaymentInfo } from '../features/checkout/components/PaytechPaymentInfo';
+import { SycapayPaymentPanel } from '../features/checkout/components/SycapayPaymentPanel';
 import {
   checkoutProductRef,
   findCatalogProduct,
@@ -24,7 +24,7 @@ import { validateInitAgainstCart } from '../lib/checkoutInitValidation';
 import { useReconcileCartWhenReady } from '../hooks/useReconcileCartWhenReady';
 import { ApiError, getApiErrorCode } from '../services/api/apiError';
 import { confirmCheckout, initCheckout } from '../services/api/commerceApi';
-import { initPaytechCheckoutPayment } from '../services/api/paymentApi';
+import { initSycapayCheckoutPayment } from '../services/api/paymentApi';
 import { checkoutErrorMessage } from '../lib/checkoutErrorMessages';
 import {
   clearCheckoutSessionKeys,
@@ -33,22 +33,43 @@ import {
   saveGuestCheckoutToken,
 } from '../lib/checkoutAccess';
 import { usePendingPaymentsStore } from '../store/pendingPaymentsStore';
-import { PAYMENT_METHOD_PAYTECH } from '../services/payment/paytechTypes';
+import {
+  codeServiceForOperator,
+  PAYMENT_METHOD_SYCAPAY,
+  sycapayQrCodeSrc,
+  type SycapayOperator,
+} from '../services/payment/sycapayTypes';
 import {
   trackCheckoutPaymentFailed,
   trackCheckoutStepComplete,
   trackCheckoutStepView,
 } from '../services/analytics/tracking';
 
-type Step = 1 | 2 | 3;
+type Step = 1 | 2;
 const STEP_LABELS: Record<Step, string> = {
   1: 'customer_info',
-  2: 'addresses',
-  3: 'payment',
+  2: 'payment',
 };
 
 function isEmailValid(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+}
+
+/** Normalise un numéro SN pour Sycapay (chiffres seuls, sans indicatif). */
+function normalizeSnPhone(raw: string): string {
+  let digits = raw.replace(/\D/g, '');
+  if (digits.startsWith('221') && digits.length > 9) {
+    digits = digits.slice(3);
+  }
+  if (digits.startsWith('0') && digits.length === 10) {
+    digits = digits.slice(1);
+  }
+  return digits;
+}
+
+function isSnPhoneValid(raw: string) {
+  const digits = normalizeSnPhone(raw);
+  return /^7\d{8}$/.test(digits);
 }
 
 export const Checkout = () => {
@@ -56,6 +77,9 @@ export const Checkout = () => {
   const [step, setStep] = useState<Step>(1);
   const [formError, setFormError] = useState('');
   const [isPaying, setIsPaying] = useState(false);
+  const [operator, setOperator] = useState<SycapayOperator>('wave');
+  const [paymentPhone, setPaymentPhone] = useState('');
+  const [activeQrCode, setActiveQrCode] = useState<string | null>(null);
 
   const cartItems = useCartStore((s) => s.items);
   const clearCart = useCartStore((s) => s.clearCart);
@@ -67,20 +91,13 @@ export const Checkout = () => {
   const { products, loading, error } = useCatalog();
   useReconcileCartWhenReady(false);
 
-  const {
-    customer,
-    shipping,
-    billing,
-    billingSameAsShipping,
-    updateCustomer,
-    updateShipping,
-    updateBilling,
-    setBillingSameAsShipping,
-  } = useCheckoutStore();
+  const { customer, shipping, updateCustomer, updateShipping } = useCheckoutStore();
 
-  const shippingPreview = useMemo(() => {
-    return [shipping.line1, shipping.city, shipping.country].filter(Boolean).join(', ');
-  }, [shipping]);
+  useEffect(() => {
+    if (!paymentPhone.trim() && customer.phone.trim()) {
+      setPaymentPhone(customer.phone);
+    }
+  }, [customer.phone, paymentPhone]);
 
   const cartProducts = useMemo(
     () =>
@@ -121,29 +138,18 @@ export const Checkout = () => {
     trackCheckoutStepView(step, STEP_LABELS[step]);
   }, [step]);
 
-  const validateStep1 = () => {
-    if (!customer.firstName.trim() || !customer.lastName.trim()) return 'Prénom et nom sont obligatoires.';
-    if (!isEmailValid(customer.email)) return 'Adresse e-mail invalide.';
-    if (!customer.phone.trim()) return 'Numéro de téléphone obligatoire.';
-    return '';
-  };
-
-  const validateAddress = (prefix: string, addr: typeof shipping) => {
-    if (!addr.line1.trim()) return `${prefix}: adresse obligatoire.`;
-    if (!addr.city.trim()) return `${prefix}: ville obligatoire.`;
-    if (!addr.country.trim()) return `${prefix}: pays obligatoire.`;
-    return '';
-  };
-
-  const validateStep2 = () => {
-    const shippingErr = validateAddress('Livraison', shipping);
-    if (shippingErr) return shippingErr;
-    if (!billingSameAsShipping) {
-      const billingErr = validateAddress('Facturation', billing);
-      if (billingErr) return billingErr;
+  const validateStep1 = useCallback(() => {
+    if (!customer.fullName.trim()) return 'Le nom complet est obligatoire.';
+    if (!customer.phone.trim()) return 'Le numéro de téléphone est obligatoire.';
+    if (!isSnPhoneValid(customer.phone)) {
+      return 'Indiquez un numéro sénégalais valide (ex. 77 123 45 67).';
+    }
+    if (!shipping.address.trim()) return 'L’adresse de livraison est obligatoire.';
+    if (customer.email.trim() && !isEmailValid(customer.email)) {
+      return 'Adresse e-mail invalide.';
     }
     return '';
-  };
+  }, [customer.email, customer.fullName, customer.phone, shipping.address]);
 
   const handleContinue = () => {
     setFormError('');
@@ -153,26 +159,30 @@ export const Checkout = () => {
       toastError(stepError);
       return;
     }
+    if (!paymentPhone.trim()) setPaymentPhone(customer.phone);
     setStep(2);
     trackCheckoutStepComplete(1, STEP_LABELS[1]);
-    info('Informations client enregistrées.');
-  };
-
-  const handleSubmitStep2 = () => {
-    setFormError('');
-    const stepError = validateStep2();
-    if (stepError) {
-      setFormError(stepError);
-      toastError(stepError);
-      return;
-    }
-    setStep(3);
-    trackCheckoutStepComplete(2, STEP_LABELS[2]);
-    info('Adresse validée. Passez au paiement.');
+    info('Informations enregistrées. Choisissez votre moyen de paiement.');
   };
 
   const handlePay = async () => {
     setFormError('');
+    setActiveQrCode(null);
+
+    const infoError = validateStep1();
+    if (infoError) {
+      setFormError(infoError);
+      toastError(infoError);
+      setStep(1);
+      return;
+    }
+
+    if (!isSnPhoneValid(paymentPhone)) {
+      const msg = 'Indiquez le numéro Wave ou Orange Money pour le paiement.';
+      setFormError(msg);
+      toastError(msg);
+      return;
+    }
 
     if (cartProducts.length === 0) {
       const msg = 'Votre panier est vide.';
@@ -184,10 +194,14 @@ export const Checkout = () => {
     const finalizeOrderLocally = async () => {
       const orderId = addOrder({
         status: 'paid',
-        paymentMethod: PAYMENT_METHOD_PAYTECH,
-        customer,
-        shippingAddress: shipping,
-        billingAddress: billingSameAsShipping ? shipping : billing,
+        paymentMethod: PAYMENT_METHOD_SYCAPAY,
+        customer: {
+          fullName: customer.fullName.trim(),
+          email: customer.email,
+          phone: customer.phone,
+        },
+        shippingAddress: { address: shipping.address },
+        billingAddress: { address: shipping.address },
         subtotal,
         shippingFee,
         total,
@@ -200,7 +214,7 @@ export const Checkout = () => {
       });
       await clearCart();
       await hydratePurchasedProducts();
-      trackCheckoutStepComplete(3, STEP_LABELS[3]);
+      trackCheckoutStepComplete(2, STEP_LABELS[2]);
       success(`Paiement validé. Commande ${orderId} créée.`);
     };
 
@@ -239,12 +253,16 @@ export const Checkout = () => {
         quantity: item.quantity,
       }));
 
+      const emailTrimmed = customer.email.trim();
       const init = await initCheckout(
         {
-          customer,
-          shippingAddress: shipping,
-          billingAddress: billingSameAsShipping ? shipping : billing,
-          billingSameAsShipping,
+          customer: {
+            fullName: customer.fullName.trim(),
+            phone: normalizeSnPhone(customer.phone),
+            ...(emailTrimmed ? { email: emailTrimmed } : {}),
+          },
+          shippingAddress: { address: shipping.address.trim() },
+          billingSameAsShipping: true,
           items: payableProducts,
         },
         { token: access.token }
@@ -271,31 +289,56 @@ export const Checkout = () => {
       }
 
       try {
-        const payment = await initPaytechCheckoutPayment(checkoutId, checkoutAccess);
-        if (!payment.redirectUrl) {
-          throw new Error('URL de paiement PayTech manquante.');
-        }
+        const payment = await initSycapayCheckoutPayment(
+          checkoutId,
+          {
+            codeService: codeServiceForOperator(operator),
+            numeroBeneficiaire: normalizeSnPhone(paymentPhone),
+          },
+          checkoutAccess
+        );
 
+        const refCommand = payment.idPartenaire ?? payment.refCommand ?? payment.paymentId;
         upsertPendingPayment({
           paymentId: payment.paymentId,
           checkoutId,
-          refCommand: payment.refCommand,
-          token: payment.token,
-          status: payment.status,
+          refCommand,
+          idPartenaire: payment.idPartenaire,
+          token: payment.tokenTX ?? payment.token,
+          tokenTX: payment.tokenTX,
+          status: payment.status ?? 'PENDING',
           amount: total,
-          redirectUrl: payment.redirectUrl,
+          redirectUrl: payment.redirectUrl ?? null,
+          deeplink: payment.deeplink ?? null,
+          qrCode: payment.qrCode ?? null,
           createdAt: new Date().toISOString(),
         });
         saveCheckoutSession(checkoutId, payment.paymentId);
-        window.location.href = payment.redirectUrl;
-        return;
+
+        if (payment.redirectUrl) {
+          window.location.href = payment.redirectUrl;
+          return;
+        }
+
+        if (payment.deeplink) {
+          window.location.href = payment.deeplink;
+          return;
+        }
+
+        if (payment.qrCode) {
+          setActiveQrCode(sycapayQrCodeSrc(payment.qrCode));
+          info('Scannez le QR code pour finaliser le paiement.');
+          return;
+        }
+
+        throw new Error('Réponse Sycapay incomplète (pas de redirect, deeplink ni QR).');
       } catch (apiErr) {
         const missingRoute =
           apiErr instanceof ApiError &&
           (apiErr.status === 405 || (apiErr.status === 404 && !getApiErrorCode(apiErr)));
         if (missingRoute) {
           info(
-            'Le paiement PayTech n’est pas encore disponible sur le serveur : votre commande est enregistrée sur cet appareil.'
+            'Le paiement Sycapay n’est pas encore disponible sur le serveur : votre commande est enregistrée sur cet appareil.'
           );
           await finalizeOrderLocally();
           return;
@@ -312,51 +355,107 @@ export const Checkout = () => {
     }
   };
 
+  const operatorLabel = operator === 'wave' ? 'Wave' : 'Orange Money';
+
   return (
     <div className="mx-auto max-w-[1400px] px-4 py-10 md:px-8 md:py-14">
       <nav className="mb-8 text-sm text-gray-500">
-        <Link to="/" className="hover:text-[#1a1a1a]">Accueil</Link>
+        <Link to="/" className="hover:text-[#1a1a1a]">
+          Accueil
+        </Link>
         <span className="mx-2 text-gray-300">/</span>
-        <Link to="/cart" className="hover:text-[#1a1a1a]">Panier</Link>
+        <Link to="/cart" className="hover:text-[#1a1a1a]">
+          Panier
+        </Link>
         <span className="mx-2 text-gray-300">/</span>
         <span className="font-medium text-[#1a1a1a]">Checkout</span>
       </nav>
 
       <div className="mb-8 flex items-center gap-2 overflow-x-auto pb-2 -mx-1 px-1 sm:gap-3">
-        <div className={`h-8 w-8 rounded-full text-sm font-bold flex items-center justify-center ${step === 1 ? 'bg-[#1a1a1a] text-white' : 'bg-[#a4a374] text-white'}`}>1</div>
-        <span aria-current={step === 1 ? 'step' : undefined} className={`whitespace-nowrap text-sm font-semibold ${step === 1 ? 'text-[#1a1a1a]' : 'text-gray-500'}`}>Informations client</span>
+        <div
+          className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ${
+            step === 1 ? 'bg-[#1a1a1a] text-white' : 'bg-[#a4a374] text-white'
+          }`}
+        >
+          1
+        </div>
+        <span
+          aria-current={step === 1 ? 'step' : undefined}
+          className={`whitespace-nowrap text-sm font-semibold ${step === 1 ? 'text-[#1a1a1a]' : 'text-gray-500'}`}
+        >
+          Vos informations
+        </span>
         <div className="h-px flex-1 bg-gray-200" />
-        <div className={`h-8 w-8 rounded-full text-sm font-bold flex items-center justify-center ${step === 2 ? 'bg-[#1a1a1a] text-white' : 'bg-gray-200 text-gray-600'}`}>2</div>
-        <span aria-current={step === 2 ? 'step' : undefined} className={`whitespace-nowrap text-sm font-semibold ${step === 2 ? 'text-[#1a1a1a]' : 'text-gray-500'}`}>Adresses</span>
-        <div className="h-px flex-1 bg-gray-200" />
-        <div className={`h-8 w-8 rounded-full text-sm font-bold flex items-center justify-center ${step === 3 ? 'bg-[#1a1a1a] text-white' : 'bg-gray-200 text-gray-600'}`}>3</div>
-        <span aria-current={step === 3 ? 'step' : undefined} className={`whitespace-nowrap text-sm font-semibold ${step === 3 ? 'text-[#1a1a1a]' : 'text-gray-500'}`}>Paiement</span>
+        <div
+          className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ${
+            step === 2 ? 'bg-[#1a1a1a] text-white' : 'bg-gray-200 text-gray-600'
+          }`}
+        >
+          2
+        </div>
+        <span
+          aria-current={step === 2 ? 'step' : undefined}
+          className={`whitespace-nowrap text-sm font-semibold ${step === 2 ? 'text-[#1a1a1a]' : 'text-gray-500'}`}
+        >
+          Paiement
+        </span>
       </div>
 
       <div className="rounded-[16px] border border-gray-100 bg-white p-4 shadow-sm sm:p-6 md:p-8">
         {step === 1 ? (
           <div className="space-y-5">
-            <h1 className="text-2xl font-bold text-[#1a1a1a]">Étape 1 - Informations client</h1>
-            <div className="grid gap-5 sm:grid-cols-2">
-              <div>
-                <NyraLabel htmlFor="co-firstName">Prénom</NyraLabel>
-                <NyraInput id="co-firstName" value={customer.firstName} onChange={(e) => updateCustomer({ firstName: e.target.value })} />
-              </div>
-              <div>
-                <NyraLabel htmlFor="co-lastName">Nom</NyraLabel>
-                <NyraInput id="co-lastName" value={customer.lastName} onChange={(e) => updateCustomer({ lastName: e.target.value })} />
-              </div>
+            <h1 className="text-2xl font-bold text-[#1a1a1a]">Vos informations</h1>
+            <p className="text-sm text-gray-500">
+              Quatre champs seulement — l’e-mail est facultatif.
+            </p>
+
+            <div>
+              <NyraLabel htmlFor="co-fullName">Nom complet</NyraLabel>
+              <NyraInput
+                id="co-fullName"
+                autoComplete="name"
+                value={customer.fullName}
+                onChange={(e) => updateCustomer({ fullName: e.target.value })}
+              />
             </div>
-            <div className="grid gap-5 sm:grid-cols-2">
-              <div>
-                <NyraLabel htmlFor="co-email">E-mail</NyraLabel>
-                <NyraInput id="co-email" type="email" value={customer.email} onChange={(e) => updateCustomer({ email: e.target.value })} />
-              </div>
-              <div>
-                <NyraLabel htmlFor="co-phone">Téléphone</NyraLabel>
-                <NyraInput id="co-phone" type="tel" value={customer.phone} onChange={(e) => updateCustomer({ phone: e.target.value })} />
-              </div>
+
+            <div>
+              <NyraLabel htmlFor="co-phone">Téléphone</NyraLabel>
+              <NyraInput
+                id="co-phone"
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel"
+                placeholder="77 123 45 67"
+                value={customer.phone}
+                onChange={(e) => updateCustomer({ phone: e.target.value })}
+              />
             </div>
+
+            <div>
+              <NyraLabel htmlFor="co-address">Adresse</NyraLabel>
+              <NyraInput
+                id="co-address"
+                autoComplete="street-address"
+                placeholder="Quartier, rue, villa…"
+                value={shipping.address}
+                onChange={(e) => updateShipping({ address: e.target.value })}
+              />
+            </div>
+
+            <div>
+              <NyraLabel htmlFor="co-email">
+                E-mail <span className="font-normal text-gray-400">(facultatif)</span>
+              </NyraLabel>
+              <NyraInput
+                id="co-email"
+                type="email"
+                autoComplete="email"
+                value={customer.email}
+                onChange={(e) => updateCustomer({ email: e.target.value })}
+              />
+            </div>
+
             <NyraFormError message={formError} />
             <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
               <NyraButton onClick={handleContinue} className="w-full sm:w-auto">
@@ -364,90 +463,14 @@ export const Checkout = () => {
               </NyraButton>
             </div>
           </div>
-        ) : step === 2 ? (
-          <div className="space-y-6">
-            <h1 className="text-2xl font-bold text-[#1a1a1a]">Étape 2 - Adresse livraison/facturation</h1>
-            <p className="text-sm text-gray-500">
-              Infos client: {customer.firstName} {customer.lastName} - {customer.email}
-            </p>
-
-            <section className="space-y-4">
-              <h2 className="text-lg font-semibold">Adresse de livraison</h2>
-              <div className="grid gap-5 sm:grid-cols-2">
-                <div className="sm:col-span-2">
-                  <NyraLabel htmlFor="ship-line1">Adresse</NyraLabel>
-                  <NyraInput id="ship-line1" value={shipping.line1} onChange={(e) => updateShipping({ line1: e.target.value })} />
-                </div>
-                <div>
-                  <NyraLabel htmlFor="ship-line2">Complément</NyraLabel>
-                  <NyraInput id="ship-line2" value={shipping.line2} onChange={(e) => updateShipping({ line2: e.target.value })} />
-                </div>
-                <div>
-                  <NyraLabel htmlFor="ship-city">Ville</NyraLabel>
-                  <NyraInput id="ship-city" value={shipping.city} onChange={(e) => updateShipping({ city: e.target.value })} />
-                </div>
-                <div>
-                  <NyraLabel htmlFor="ship-region">Région</NyraLabel>
-                  <NyraInput id="ship-region" value={shipping.region} onChange={(e) => updateShipping({ region: e.target.value })} />
-                </div>
-                <div>
-                  <NyraLabel htmlFor="ship-postal">Code postal</NyraLabel>
-                  <NyraInput id="ship-postal" value={shipping.postalCode} onChange={(e) => updateShipping({ postalCode: e.target.value })} />
-                </div>
-                <div>
-                  <NyraLabel htmlFor="ship-country">Pays</NyraLabel>
-                  <NyraInput id="ship-country" value={shipping.country} onChange={(e) => updateShipping({ country: e.target.value })} />
-                </div>
-              </div>
-            </section>
-
-            <section className="space-y-4">
-              <label className="inline-flex items-center gap-2 text-sm font-medium">
-                <input
-                  type="checkbox"
-                  checked={billingSameAsShipping}
-                  onChange={(e) => setBillingSameAsShipping(e.target.checked)}
-                  className="h-4 w-4 accent-black"
-                />
-                Adresse de facturation identique à la livraison
-              </label>
-
-              {!billingSameAsShipping ? (
-                <div className="grid gap-5 sm:grid-cols-2 border border-gray-100 rounded-[12px] p-4">
-                  <div className="sm:col-span-2">
-                    <NyraLabel htmlFor="bill-line1">Adresse facturation</NyraLabel>
-                    <NyraInput id="bill-line1" value={billing.line1} onChange={(e) => updateBilling({ line1: e.target.value })} />
-                  </div>
-                  <div>
-                    <NyraLabel htmlFor="bill-city">Ville</NyraLabel>
-                    <NyraInput id="bill-city" value={billing.city} onChange={(e) => updateBilling({ city: e.target.value })} />
-                  </div>
-                  <div>
-                    <NyraLabel htmlFor="bill-country">Pays</NyraLabel>
-                    <NyraInput id="bill-country" value={billing.country} onChange={(e) => updateBilling({ country: e.target.value })} />
-                  </div>
-                </div>
-              ) : (
-                <p className="text-sm text-gray-500">Facturation: {shippingPreview || 'sera identique à la livraison'}</p>
-              )}
-            </section>
-
-            <NyraFormError message={formError} />
-            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <NyraButton type="button" variant="outline" onClick={() => setStep(1)} className="w-full sm:w-auto">
-                <ArrowLeft className="h-4 w-4" /> Retour
-              </NyraButton>
-              <NyraButton type="button" onClick={handleSubmitStep2} className="w-full sm:w-auto">
-                Continuer vers paiement <ArrowRight className="h-4 w-4" />
-              </NyraButton>
-            </div>
-          </div>
         ) : (
           <div className="space-y-6">
-            <h1 className="text-2xl font-bold text-[#1a1a1a]">Étape 3 - Récap & Paiement</h1>
+            <h1 className="text-2xl font-bold text-[#1a1a1a]">Récapitulatif & paiement</h1>
             <p className="text-sm text-gray-500">
-              Paiement PayTech — avec ou sans compte Nyra.
+              {customer.fullName} — {customer.phone}
+              {customer.email ? ` — ${customer.email}` : ''}
             </p>
+            <p className="text-sm text-gray-500">Livraison : {shipping.address}</p>
 
             {loading ? (
               <LoadingState message="Chargement du récapitulatif..." className="py-8" />
@@ -456,10 +479,12 @@ export const Checkout = () => {
             ) : (
               <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
                 <section className="rounded-[14px] border border-gray-100 p-4 md:p-6">
-                  <h2 className="mb-4 text-lg font-semibold">Récapitulatif commande</h2>
+                  <h2 className="mb-4 text-lg font-semibold">Commande</h2>
                   {hasLockedHerboristerie ? <ProfessionalPriceHint className="mb-4" /> : null}
                   {cartProducts.length === 0 ? (
-                    <p className="text-sm text-gray-500">Panier vide. Retournez au panier pour ajouter des articles.</p>
+                    <p className="text-sm text-gray-500">
+                      Panier vide. Retournez au panier pour ajouter des articles.
+                    </p>
                   ) : (
                     <div className="space-y-3">
                       {purchasableLines.map((item) => {
@@ -478,7 +503,9 @@ export const Checkout = () => {
                             {hideLinePrice ? (
                               <span className="text-xs font-semibold text-[#7d755f]">Prix pro</span>
                             ) : (
-                              <span className="font-semibold">{formatPrice(item.unitPrice * item.quantity)}</span>
+                              <span className="font-semibold">
+                                {formatPrice(item.unitPrice * item.quantity)}
+                              </span>
                             )}
                           </div>
                         );
@@ -503,7 +530,13 @@ export const Checkout = () => {
 
                 <section className="rounded-[14px] border border-gray-100 p-4 md:p-6">
                   <h2 className="mb-4 text-lg font-semibold">Paiement</h2>
-                  <PaytechPaymentInfo />
+                  <SycapayPaymentPanel
+                    operator={operator}
+                    onOperatorChange={setOperator}
+                    phone={paymentPhone}
+                    onPhoneChange={setPaymentPhone}
+                    qrCode={activeQrCode}
+                  />
                 </section>
               </div>
             )}
@@ -519,13 +552,39 @@ export const Checkout = () => {
             ) : null}
 
             <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <NyraButton type="button" variant="outline" onClick={() => setStep(2)} className="w-full sm:w-auto">
+              <NyraButton
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setActiveQrCode(null);
+                  setStep(1);
+                }}
+                className="w-full sm:w-auto"
+              >
                 <ArrowLeft className="h-4 w-4" /> Retour
               </NyraButton>
-              <NyraButton type="button" onClick={handlePay} disabled={isPaying || loading} className="w-full sm:w-auto">
-                {isPaying ? 'Redirection PayTech...' : 'Payer avec PayTech'}
-                <ArrowRight className="h-4 w-4" />
-              </NyraButton>
+              {!activeQrCode ? (
+                <NyraButton
+                  type="button"
+                  onClick={handlePay}
+                  disabled={isPaying || loading}
+                  className="w-full sm:w-auto"
+                >
+                  {isPaying ? `Lancement ${operatorLabel}…` : `Payer avec ${operatorLabel}`}
+                  <ArrowRight className="h-4 w-4" />
+                </NyraButton>
+              ) : (
+                <NyraButton
+                  type="button"
+                  onClick={() => {
+                    window.location.href = '/checkout/payment/return?result=success';
+                  }}
+                  className="w-full sm:w-auto"
+                >
+                  J’ai payé — vérifier le statut
+                  <ArrowRight className="h-4 w-4" />
+                </NyraButton>
+              )}
             </div>
           </div>
         )}

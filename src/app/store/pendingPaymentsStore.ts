@@ -4,14 +4,14 @@ import { getPendingPayments } from '../services/api/paymentApi';
 import { getStoredAuthToken } from '../services/api/session';
 import {
   isPaymentAwaitingAction,
-  type PaytechPaymentStatus,
+  type PaymentStatus,
   type PendingPaymentSummary,
-} from '../services/payment/paytechTypes';
+} from '../services/payment/sycapayTypes';
 
 type PendingPaymentsStore = {
   items: PendingPaymentSummary[];
   upsert: (payment: PendingPaymentSummary) => void;
-  updateStatus: (paymentId: string, status: PaytechPaymentStatus, patch?: Partial<PendingPaymentSummary>) => void;
+  updateStatus: (paymentId: string, status: PaymentStatus, patch?: Partial<PendingPaymentSummary>) => void;
   remove: (paymentId: string) => void;
   hydrateFromServer: () => Promise<void>;
   clear: () => void;

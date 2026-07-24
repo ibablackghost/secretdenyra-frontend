@@ -1,10 +1,11 @@
 import type { UIProduct } from '../features/catalog/types';
 import { checkoutProductRef, checkoutVariantRef, findCatalogProduct } from '../features/catalog/productUtils';
 
+/** Ligne panier pour POST /api/checkout/init (contrat infos client). */
 export type CheckoutCartLine = {
-  productId: string;
+  productDocumentId: string;
   quantity: number;
-  variantId?: string;
+  variantDocumentId?: string;
 };
 
 export function toCheckoutLine(
@@ -13,8 +14,11 @@ export function toCheckoutLine(
   variantIdInCart?: string
 ): CheckoutCartLine | null {
   const variantCount = product.variants?.length ?? 0;
+  const productDocumentId = checkoutProductRef(product);
+  if (!productDocumentId) return null;
+
   const line: CheckoutCartLine = {
-    productId: checkoutProductRef(product),
+    productDocumentId,
     quantity,
   };
 
@@ -31,7 +35,7 @@ export function toCheckoutLine(
     return null;
   }
 
-  line.variantId = variantRef;
+  line.variantDocumentId = variantRef;
   return line;
 }
 

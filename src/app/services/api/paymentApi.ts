@@ -2,10 +2,11 @@ import { requestJson } from './httpClient';
 import type { CheckoutAccess } from '../../lib/checkoutAccess';
 import { checkoutRequestHeaders } from '../../lib/checkoutAccess';
 import type {
-  InitPaytechPaymentResponse,
+  InitSycapayPaymentInput,
+  InitSycapayPaymentResponse,
   PaymentStatusResponse,
   PendingPaymentSummary,
-} from '../payment/paytechTypes';
+} from '../payment/sycapayTypes';
 
 const STRAPI_URL = import.meta.env.VITE_STRAPI_URL;
 
@@ -20,8 +21,22 @@ function url(path: string) {
   return `${ensureBaseUrl()}${path}`;
 }
 
+export async function initSycapayCheckoutPayment(
+  checkoutId: string,
+  input: InitSycapayPaymentInput,
+  access: CheckoutAccess = {}
+) {
+  return requestJson<InitSycapayPaymentResponse>(url(`/api/checkout/${checkoutId}/payment/sycapay`), {
+    method: 'POST',
+    headers: checkoutRequestHeaders(access),
+    body: input,
+    timeoutMs: 65000,
+  });
+}
+
+/** @deprecated Prefer initSycapayCheckoutPayment */
 export async function initPaytechCheckoutPayment(checkoutId: string, access: CheckoutAccess = {}) {
-  return requestJson<InitPaytechPaymentResponse>(url(`/api/checkout/${checkoutId}/payment/paytech`), {
+  return requestJson<InitSycapayPaymentResponse>(url(`/api/checkout/${checkoutId}/payment/paytech`), {
     method: 'POST',
     headers: checkoutRequestHeaders(access),
     timeoutMs: 65000,
