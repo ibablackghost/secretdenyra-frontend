@@ -5,9 +5,24 @@ import {
   type SycapayOperator,
 } from '../../../services/payment/sycapayTypes';
 
-const OPERATOR_LOGOS: Record<SycapayOperator, string> = {
-  wave: waveLogo,
-  orange_money: orangeLogo,
+const OPERATOR_VISUAL: Record<
+  SycapayOperator,
+  { logo: string; selectedRing: string; softBg: string; label: string; logoClass: string }
+> = {
+  wave: {
+    logo: waveLogo,
+    selectedRing: 'ring-[#1DC8FF]/60 border-[#1DC8FF]',
+    softBg: 'bg-[#E8F9FF]',
+    label: 'Wave',
+    logoClass: 'h-16 w-16 rounded-2xl shadow-sm',
+  },
+  orange_money: {
+    logo: orangeLogo,
+    selectedRing: 'ring-[#FF7900]/60 border-[#FF7900]',
+    softBg: 'bg-white',
+    label: 'Orange Money',
+    logoClass: 'h-16 w-16 rounded-2xl shadow-sm',
+  },
 };
 
 type Props = {
@@ -31,27 +46,43 @@ export function SycapayPaymentPanel({
         <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label="Opérateur de paiement">
           {SYCAPAY_OPERATORS.map((op) => {
             const selected = operator === op.id;
+            const visual = OPERATOR_VISUAL[op.id];
             return (
               <button
                 key={op.id}
                 type="button"
                 role="radio"
                 aria-checked={selected}
+                aria-label={visual.label}
+                title={visual.label}
                 onClick={() => onOperatorChange(op.id)}
-                className={`flex flex-col items-center gap-2 rounded-[14px] border p-3 transition ${
+                className={`group relative flex aspect-[4/3] items-center justify-center overflow-hidden rounded-2xl border-2 p-4 transition duration-200 ${
                   selected
-                    ? 'border-[#1a1a1a] bg-[#fafaf7] ring-1 ring-[#1a1a1a]'
-                    : 'border-gray-200 bg-white hover:border-gray-300'
+                    ? `${visual.softBg} ${visual.selectedRing} ring-2 shadow-sm scale-[1.02]`
+                    : 'border-gray-100 bg-white hover:border-gray-200 hover:bg-gray-50/80'
                 }`}
               >
                 <img
-                  src={OPERATOR_LOGOS[op.id]}
+                  src={visual.logo}
                   alt=""
-                  className="h-12 w-12 object-contain"
-                  width={48}
-                  height={48}
+                  className={`object-contain transition duration-200 ${visual.logoClass} ${
+                    selected ? 'scale-105' : 'group-hover:scale-105'
+                  }`}
+                  width={72}
+                  height={72}
                 />
-                <span className="text-sm font-semibold text-[#1a1a1a]">{op.label}</span>
+                {selected ? (
+                  <span
+                    className={`absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold ${
+                      op.id === 'orange_money'
+                        ? 'bg-[#FF7900] text-white'
+                        : 'bg-[#1a1a1a] text-white'
+                    }`}
+                    aria-hidden
+                  >
+                    ✓
+                  </span>
+                ) : null}
               </button>
             );
           })}
@@ -76,10 +107,6 @@ export function SycapayPaymentPanel({
           </p>
         </div>
       ) : null}
-
-      <div className="rounded-[12px] border border-[#ece7db] bg-[#fafaf7] p-4 text-sm text-gray-600">
-        Paiement sécurisé via Sycapay — Wave ou Orange Money uniquement.
-      </div>
     </div>
   );
 }

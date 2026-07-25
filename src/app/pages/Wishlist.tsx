@@ -6,6 +6,7 @@ import { useCatalog } from '../lib/useCatalog';
 import { EmptyState, ErrorState, LoadingState } from '../components/ui/AsyncState';
 import { ProductCard } from '../features/catalog/components/ProductCard';
 import { useToast } from '../hooks/useToast';
+import { useCartAddedBarStore } from '../store/cartAddedBarStore';
 import type { UIProduct } from '../features/catalog/types';
 import { trackAddToCart } from '../services/analytics/tracking';
 import {
@@ -21,7 +22,8 @@ export const Wishlist = () => {
   const toggle = useWishlistStore((s) => s.toggle);
   const addItem = useCartStore((s) => s.addItem);
   const { products, loading, error } = useCatalog();
-  const { success, info } = useToast();
+  const { info } = useToast();
+  const showCartBar = useCartAddedBarStore((s) => s.show);
 
   const wishProducts = products.filter((p) => ids.includes(p.id) || ids.includes(p.slug));
 
@@ -30,7 +32,7 @@ export const Wishlist = () => {
     const variantId = def ? checkoutVariantRef(product, variantLineId(def)) : undefined;
     void addItem(checkoutProductRef(product), { variantId, quantity: 1 });
     trackAddToCart({ ...product, price: unitPriceForLine(product, variantId) }, 1);
-    success(`Ajouté au panier: ${product.name}`);
+    showCartBar(product.name);
   };
 
   const handleToggleWishlist = (product: UIProduct, wished: boolean) => {

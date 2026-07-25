@@ -37,6 +37,7 @@ import { usePendingPaymentsStore } from '../store/pendingPaymentsStore';
 import {
   codeServiceForOperator,
   PAYMENT_METHOD_SYCAPAY,
+  resolveSycapayOpenUrl,
   sycapayQrCodeSrc,
   type SycapayOperator,
 } from '../services/payment/sycapayTypes';
@@ -108,8 +109,8 @@ export const Checkout = () => {
     () => purchasableLines.reduce((acc, item) => acc + item.unitPrice * item.quantity, 0),
     [purchasableLines]
   );
-  const shippingFee = subtotal > 45000 || subtotal === 0 ? 0 : 10;
-  const total = subtotal + shippingFee;
+  const shippingFee = 0;
+  const total = subtotal;
 
   useEffect(() => {
     trackCheckoutStepView(step, STEP_LABELS[step]);
@@ -121,7 +122,7 @@ export const Checkout = () => {
     if (!isSnPhoneValid(customer.phone)) {
       return 'Indiquez un numéro sénégalais valide (ex. 77 123 45 67).';
     }
-    if (!shipping.address.trim()) return 'L’adresse de livraison est obligatoire.';
+    if (!shipping.address.trim()) return 'L’adresse est obligatoire.';
     if (customer.email.trim() && !isEmailValid(customer.email)) {
       return 'Adresse e-mail invalide.';
     }
@@ -272,6 +273,8 @@ export const Checkout = () => {
         );
 
         const refCommand = payment.idPartenaire ?? payment.refCommand ?? payment.paymentId;
+        const openUrl = resolveSycapayOpenUrl(payment as typeof payment & Record<string, unknown>);
+
         upsertPendingPayment({
           paymentId: payment.paymentId,
           checkoutId,
@@ -281,20 +284,16 @@ export const Checkout = () => {
           tokenTX: payment.tokenTX,
           status: payment.status ?? 'PENDING',
           amount: total,
-          redirectUrl: payment.redirectUrl ?? null,
-          deeplink: payment.deeplink ?? null,
+          redirectUrl: openUrl,
+          deeplink: payment.deeplink ?? payment.deepLinks?.OM ?? null,
           qrCode: payment.qrCode ?? null,
           createdAt: new Date().toISOString(),
         });
         saveCheckoutSession(checkoutId, payment.paymentId);
 
-        if (payment.redirectUrl) {
-          window.location.href = payment.redirectUrl;
-          return;
-        }
-
-        if (payment.deeplink) {
-          window.location.href = payment.deeplink;
+        // OM : deepLinks.OM est un lien https — rediriger (errorCode 201 = OK à rediriger).
+        if (openUrl) {
+          window.location.href = openUrl;
           return;
         }
 
@@ -304,7 +303,7 @@ export const Checkout = () => {
           return;
         }
 
-        throw new Error('Réponse Sycapay incomplète (pas de redirect, deeplink ni QR).');
+        throw new Error('Réponse Sycapay incomplète (pas de lien de paiement ni QR).');
       } catch (apiErr) {
         const missingRoute =
           apiErr instanceof ApiError &&
@@ -442,7 +441,7 @@ export const Checkout = () => {
               {customer.fullName} — +221 {normalizeSnPhone(customer.phone)}
               {customer.email ? ` — ${customer.email}` : ''}
             </p>
-            <p className="text-sm text-gray-500">Livraison : {shipping.address}</p>
+            <p className="text-sm text-gray-500">Adresse : {shipping.address}</p>
 
             {loading ? (
               <LoadingState message="Chargement du récapitulatif..." className="py-8" />
@@ -488,10 +487,6 @@ export const Checkout = () => {
                     <div className="flex items-center justify-between text-gray-600">
                       <span>Sous-total</span>
                       <span>{formatPrice(subtotal)}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-gray-600">
-                      <span>Livraison estimée</span>
-                      <span>{shippingFee === 0 ? 'Gratuite' : formatPrice(shippingFee)}</span>
                     </div>
                     <div className="flex items-center justify-between text-base font-bold">
                       <span>Total</span>

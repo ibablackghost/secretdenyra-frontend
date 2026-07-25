@@ -21,17 +21,37 @@ function url(path: string) {
   return `${ensureBaseUrl()}${path}`;
 }
 
+/** Normalise la réponse Nyra / Sycapay (deepLinks.OM → champs plats). */
+function normalizeSycapayPaymentResponse(raw: InitSycapayPaymentResponse): InitSycapayPaymentResponse {
+  const deepLinks = raw.deepLinks;
+  const omLink =
+    (typeof deepLinks?.OM === 'string' && deepLinks.OM) ||
+    (typeof deepLinks?.MAXIT === 'string' && deepLinks.MAXIT) ||
+    null;
+
+  return {
+    ...raw,
+    redirectUrl: raw.redirectUrl ?? raw.urlRedirection ?? omLink,
+    deeplink: raw.deeplink ?? omLink,
+    deepLinks: raw.deepLinks ?? (omLink ? { OM: omLink } : raw.deepLinks),
+  };
+}
+
 export async function initSycapayCheckoutPayment(
   checkoutId: string,
   input: InitSycapayPaymentInput,
   access: CheckoutAccess = {}
 ) {
-  return requestJson<InitSycapayPaymentResponse>(url(`/api/checkout/${checkoutId}/payment/sycapay`), {
-    method: 'POST',
-    headers: checkoutRequestHeaders(access),
-    body: input,
-    timeoutMs: 65000,
-  });
+  const response = await requestJson<InitSycapayPaymentResponse>(
+    url(`/api/checkout/${checkoutId}/payment/sycapay`),
+    {
+      method: 'POST',
+      headers: checkoutRequestHeaders(access),
+      body: input,
+      timeoutMs: 65000,
+    }
+  );
+  return normalizeSycapayPaymentResponse(response);
 }
 
 /** @deprecated Prefer initSycapayCheckoutPayment */

@@ -38,9 +38,20 @@ export type InitSycapayPaymentResponse = {
   token?: string;
   status?: PaymentStatus;
   redirectUrl?: string | null;
+  /** Lien unique (si le backend mappe déjà deepLinks.OM) */
   deeplink?: string | null;
+  /** Réponse brute Sycapay OM : deepLinks.OM / deepLinks.MAXIT */
+  deepLinks?: {
+    OM?: string | null;
+    MAXIT?: string | null;
+    [key: string]: string | null | undefined;
+  } | null;
+  urlRedirection?: string | null;
   qrCode?: string | null;
   otpRequired?: boolean;
+  /** Sycapay renvoie parfois errorCode "201" = paiement en cours (succès à rediriger). */
+  errorCode?: string | number;
+  errorMessage?: string;
 };
 
 export type PaymentStatusResponse = {
@@ -107,6 +118,33 @@ export function paymentStatusLabel(status: PaymentStatus): string {
     default:
       return status;
   }
+}
+
+/**
+ * Choisit l’URL de paiement à ouvrir.
+ * OM Sycapay : `deepLinks.OM` (lien web) prioritaire sur le QR.
+ */
+export function resolveSycapayOpenUrl(
+  payment: InitSycapayPaymentResponse & Record<string, unknown>
+): string | null {
+  const deepLinks =
+    payment.deepLinks && typeof payment.deepLinks === 'object' ? payment.deepLinks : null;
+
+  const candidates = [
+    payment.redirectUrl,
+    payment.urlRedirection,
+    payment.deeplink,
+    deepLinks?.OM,
+    deepLinks?.MAXIT,
+    typeof payment.deepLink === 'string' ? payment.deepLink : null,
+  ];
+
+  for (const raw of candidates) {
+    if (typeof raw === 'string' && raw.trim().startsWith('http')) {
+      return raw.trim();
+    }
+  }
+  return null;
 }
 
 /** Normalise un qrCode Sycapay (base64 brut ou data URI). */

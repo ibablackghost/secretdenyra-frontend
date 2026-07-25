@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router';
 import { Header } from './Header';
 import { Footer } from './Footer';
 import { ToastViewport } from '../ui/ToastViewport';
+import { CartAddedBar } from '../ui/CartAddedBar';
 
 const ScrollToTop = () => {
   const { pathname } = useLocation();
@@ -30,6 +31,7 @@ export const Layout = () => {
       </main>
       <Footer />
       <ToastViewport />
+      <CartAddedBar />
     </div>
   );
 };

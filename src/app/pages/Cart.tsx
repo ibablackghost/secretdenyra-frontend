@@ -85,8 +85,7 @@ export const Cart = () => {
   const hasLockedHerboristerie = lockedHerboristerieLines.length > 0;
 
   const subtotal = purchasableLines.reduce((acc, item) => acc + item.unitPrice * item.quantity, 0);
-  const shipping = subtotal > 45000 || subtotal === 0 ? 0 : 10;
-  const total = subtotal + shipping;
+  const total = subtotal;
 
   const handleRemove = (lineKey: string, productName: string) => {
     const line = cartProducts.find((item) => item.lineKey === lineKey);
@@ -257,13 +256,6 @@ export const Cart = () => {
                 <span>Sous-total</span>
                 <span>{formatPrice(subtotal)}</span>
               </div>
-              <div className="flex justify-between text-gray-600">
-                <span>Livraison</span>
-                <span>{shipping === 0 ? 'Gratuite' : formatPrice(shipping)}</span>
-              </div>
-              {shipping > 0 && (
-                <div className="text-xs text-[#a4a374]">Plus que {formatPrice(45000 - subtotal)} pour la livraison gratuite !</div>
-              )}
             </div>
 
             <div className="border-t border-gray-200 pt-4 flex justify-between items-center text-lg font-bold">

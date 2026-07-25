@@ -1,7 +1,7 @@
 import { useParams, Link } from 'react-router';
 import { useCartStore } from '../store/cartStore';
 import { useWishlistStore } from '../store/wishlistStore';
-import { Star, Check, Truck, ShieldCheck, ArrowLeft, Plus, Minus, Heart } from 'lucide-react';
+import { Star, Check, ShieldCheck, ArrowLeft, Plus, Minus, Heart } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useCatalog } from '../lib/useCatalog';
 import { formatPrice } from '../lib/price';
@@ -10,6 +10,7 @@ import { ProductPageSkeleton } from '../features/catalog/components/ProductPageS
 import { MediaImage } from '../components/ui/MediaImage';
 import { ProductCard } from '../features/catalog/components/ProductCard';
 import { useToast } from '../hooks/useToast';
+import { useCartAddedBarStore } from '../store/cartAddedBarStore';
 import type { UIProduct, UIProductVariant } from '../features/catalog/types';
 import {
   checkoutProductRef,
@@ -38,7 +39,8 @@ export const Product = () => {
   const [added, setAdded] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [selectedVariant, setSelectedVariant] = useState<UIProductVariant | null>(null);
-  const { success, info } = useToast();
+  const { info } = useToast();
+  const showCartBar = useCartAddedBarStore((s) => s.show);
   const { shouldHidePrice, canPurchaseProduct } = useHerboristeriePriceAccess();
   const pushViewed = useViewedProductsStore((s) => s.push);
 
@@ -142,7 +144,7 @@ export const Product = () => {
     if (product.variants.length > 0 && !variantId) return;
     void addItem(checkoutProductRef(product), { variantId, quantity });
     trackAddToCart({ ...product, price: effectivePrice }, quantity);
-    success(`Ajouté au panier: ${product.name} x${quantity}`);
+    showCartBar(product.name);
     setAdded(true);
     setTimeout(() => setAdded(false), 2000);
   };
@@ -156,7 +158,7 @@ export const Product = () => {
     const variantId = def ? checkoutVariantRef(item, variantLineId(def)) : undefined;
     void addItem(checkoutProductRef(item), { variantId, quantity: 1 });
     trackAddToCart({ ...item, price: def?.price ?? item.price }, 1);
-    success(`Ajouté au panier: ${item.name}`);
+    showCartBar(item.name);
   };
 
   const handleToggleWishlist = (item: UIProduct, wished: boolean) => {
@@ -412,12 +414,6 @@ export const Product = () => {
           <div className="mb-10 hidden gap-3 pt-4 md:flex">{purchaseControls}</div>
 
           <div className="grid grid-cols-1 gap-4 text-sm text-[#1a1a1a] py-6 border-y border-gray-100">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-[#a4a374]/10 flex items-center justify-center shrink-0">
-                <Truck className="w-4 h-4 text-[#a4a374]" />
-              </div>
-              <span className="font-medium">Livraison offerte dès 45 000 XOF d&apos;achat</span>
-            </div>
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-full bg-[#a4a374]/10 flex items-center justify-center shrink-0">
                 <ShieldCheck className="w-4 h-4 text-[#a4a374]" />
