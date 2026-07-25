@@ -291,10 +291,17 @@ export const Checkout = () => {
         });
         saveCheckoutSession(checkoutId, payment.paymentId);
 
-        // OM : deepLinks.OM est un lien https — rediriger (errorCode 201 = OK à rediriger).
+        // Priorité : lien https (Wave redirectUrl / OM deepLinks.OM). Pas de QR pour OM.
         if (openUrl) {
           window.location.href = openUrl;
           return;
+        }
+
+        const isOm = codeServiceForOperator(operator) === 'SN_PM_OM';
+        if (isOm) {
+          throw new Error(
+            'Orange Money : le serveur n’a pas renvoyé le lien de paiement (deepLinks.OM). Corrigez le mapping Sycapay côté backend.'
+          );
         }
 
         if (payment.qrCode) {
@@ -303,7 +310,7 @@ export const Checkout = () => {
           return;
         }
 
-        throw new Error('Réponse Sycapay incomplète (pas de lien de paiement ni QR).');
+        throw new Error('Réponse Sycapay incomplète (pas de lien de paiement).');
       } catch (apiErr) {
         const missingRoute =
           apiErr instanceof ApiError &&

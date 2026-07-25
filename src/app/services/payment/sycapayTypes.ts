@@ -122,13 +122,28 @@ export function paymentStatusLabel(status: PaymentStatus): string {
 
 /**
  * Choisit l’URL de paiement à ouvrir.
- * OM Sycapay : `deepLinks.OM` (lien web) prioritaire sur le QR.
+ * OM Sycapay : `deepLinks.OM` / `MAXIT` (lien https) prioritaire sur le QR.
+ * Explore aussi les payloads imbriqués renvoyés par certains backends.
  */
 export function resolveSycapayOpenUrl(
   payment: InitSycapayPaymentResponse & Record<string, unknown>
 ): string | null {
+  const nested =
+    payment.data && typeof payment.data === 'object'
+      ? (payment.data as Record<string, unknown>)
+      : null;
+  const provider =
+    payment.providerResponse && typeof payment.providerResponse === 'object'
+      ? (payment.providerResponse as Record<string, unknown>)
+      : payment.sycapay && typeof payment.sycapay === 'object'
+        ? (payment.sycapay as Record<string, unknown>)
+        : nested;
+
+  const deepLinksRaw = payment.deepLinks ?? provider?.deepLinks;
   const deepLinks =
-    payment.deepLinks && typeof payment.deepLinks === 'object' ? payment.deepLinks : null;
+    deepLinksRaw && typeof deepLinksRaw === 'object'
+      ? (deepLinksRaw as Record<string, unknown>)
+      : null;
 
   const candidates = [
     payment.redirectUrl,
@@ -136,7 +151,12 @@ export function resolveSycapayOpenUrl(
     payment.deeplink,
     deepLinks?.OM,
     deepLinks?.MAXIT,
+    deepLinks?.om,
+    deepLinks?.maxit,
     typeof payment.deepLink === 'string' ? payment.deepLink : null,
+    typeof provider?.redirectUrl === 'string' ? provider.redirectUrl : null,
+    typeof provider?.urlRedirection === 'string' ? provider.urlRedirection : null,
+    typeof provider?.deeplink === 'string' ? provider.deeplink : null,
   ];
 
   for (const raw of candidates) {
