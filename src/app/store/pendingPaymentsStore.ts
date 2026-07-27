@@ -17,33 +17,24 @@ type PendingPaymentsStore = {
   clear: () => void;
 };
 
-function mergePayments(local: PendingPaymentSummary[], remote: PendingPaymentSummary[]) {
-  const map = new Map<string, PendingPaymentSummary>();
-  for (const item of local) map.set(item.paymentId, item);
-  for (const item of remote) {
-    const existing = map.get(item.paymentId);
-    map.set(item.paymentId, existing ? { ...existing, ...item } : item);
-  }
-  return Array.from(map.values())
-    .filter((item) => isPaymentAwaitingAction(item.status))
-    .sort((a, b) => {
-      const ta = a.createdAt ? Date.parse(a.createdAt) : 0;
-      const tb = b.createdAt ? Date.parse(b.createdAt) : 0;
-      return tb - ta;
-    });
+function isSycapayPending(item: PendingPaymentSummary) {
+  if (!isPaymentAwaitingAction(item.status)) return false;
+  const provider = (item.provider ?? 'sycapay').toLowerCase();
+  return provider !== 'paytech' && provider !== 'intech';
 }
 
 export const usePendingPaymentsStore = create<PendingPaymentsStore>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       items: [],
       upsert: (payment) =>
         set((state) => {
           const others = state.items.filter((item) => item.paymentId !== payment.paymentId);
-          if (!isPaymentAwaitingAction(payment.status)) {
-            return { items: others };
+          const withProvider = { ...payment, provider: payment.provider ?? 'sycapay' };
+          if (!isSycapayPending(withProvider)) {
+            return { items: others.filter(isSycapayPending) };
           }
-          return { items: [payment, ...others] };
+          return { items: [withProvider, ...others].filter(isSycapayPending) };
         }),
       updateStatus: (paymentId, status, patch) =>
         set((state) => {
@@ -51,9 +42,9 @@ export const usePendingPaymentsStore = create<PendingPaymentsStore>()(
             return { items: state.items.filter((item) => item.paymentId !== paymentId) };
           }
           return {
-            items: state.items.map((item) =>
-              item.paymentId === paymentId ? { ...item, ...patch, status } : item
-            ),
+            items: state.items
+              .map((item) => (item.paymentId === paymentId ? { ...item, ...patch, status } : item))
+              .filter(isSycapayPending),
           };
         }),
       remove: (paymentId) => set((state) => ({ items: state.items.filter((item) => item.paymentId !== paymentId) })),
@@ -62,18 +53,26 @@ export const usePendingPaymentsStore = create<PendingPaymentsStore>()(
         if (!token) return;
         try {
           const data = await getPendingPayments(token);
-          const remote = Array.isArray(data.items) ? data.items : [];
-          set({ items: mergePayments(get().items, remote) });
+          const remote = (Array.isArray(data.items) ? data.items : [])
+            .map((item) => ({ ...item, provider: item.provider ?? 'sycapay' }))
+            .filter(isSycapayPending);
+          // Source de vérité serveur : on ne garde plus le cache PayTech local.
+          set({ items: remote });
         } catch {
-          // Route backend pas encore disponible : conserver le cache local.
+          // Si l’API échoue, purge au moins les vieux PayTech du cache.
+          set((state) => ({ items: state.items.filter(isSycapayPending) }));
         }
       },
       clear: () => set({ items: [] }),
     }),
-    { name: 'nyra-pending-payments' }
+    {
+      name: 'nyra-pending-payments',
+      version: 2,
+      migrate: () => ({ items: [] }),
+    }
   )
 );
 
 export function selectAwaitingPayments(items: PendingPaymentSummary[]) {
-  return items.filter((item) => isPaymentAwaitingAction(item.status));
+  return items.filter(isSycapayPending);
 }

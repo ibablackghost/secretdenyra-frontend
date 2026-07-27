@@ -71,7 +71,8 @@ export type RemotePurchasedProductItem = {
     slug?: string;
     name?: string;
     price?: number;
-    image?: string;
+    /** String legacy ou objet Strapi `{ url }` */
+    image?: string | { url?: string; alternativeText?: string | null };
     currency?: string;
   };
   productId?: string;

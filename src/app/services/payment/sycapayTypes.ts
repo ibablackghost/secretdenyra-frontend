@@ -33,7 +33,6 @@ export type InitSycapayPaymentResponse = {
   paymentId: string;
   idPartenaire?: string;
   tokenTX?: string;
-  /** Alias legacy PayTech — certains backends renvoient encore refCommand */
   refCommand?: string;
   token?: string;
   status?: PaymentStatus;
@@ -74,6 +73,7 @@ export type PendingPaymentSummary = {
   token?: string;
   tokenTX?: string;
   status: PaymentStatus;
+  provider?: string;
   amount?: number;
   redirectUrl?: string | null;
   deeplink?: string | null;
@@ -83,19 +83,6 @@ export type PendingPaymentSummary = {
 };
 
 export const PAYMENT_METHOD_SYCAPAY = 'sycapay' as const;
-
-/** @deprecated Prefer PAYMENT_METHOD_SYCAPAY */
-export const PAYMENT_METHOD_PAYTECH = 'paytech' as const;
-
-export type PaytechPaymentStatus = PaymentStatus;
-export type PaytechPaymentError = PaymentError;
-export type InitPaytechPaymentResponse = {
-  paymentId: string;
-  refCommand: string;
-  token?: string;
-  status: PaymentStatus;
-  redirectUrl: string;
-};
 
 export function isPaymentAwaitingAction(status: PaymentStatus): boolean {
   return status === 'PENDING';

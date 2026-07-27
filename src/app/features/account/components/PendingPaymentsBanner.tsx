@@ -1,50 +1,43 @@
-import { AlertCircle } from 'lucide-react';
 import { Link } from 'react-router';
+import { AlertTriangle } from 'lucide-react';
 
-type Props = {
-  count: number;
-};
+type Props = { count: number };
 
+/** Affiché seulement s’il reste des paiements Sycapay PENDING. */
 export function PendingPaymentsBanner({ count }: Props) {
   if (count <= 0) return null;
 
   return (
-    <div
-      role="alert"
-      className="mt-6 flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-amber-950 sm:flex-row sm:items-center sm:justify-between"
-    >
-      <div className="flex items-start gap-3">
-        <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden />
+    <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-start gap-2">
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
         <div>
           <p className="font-semibold">
-            {count === 1 ? '1 paiement en attente de validation' : `${count} paiements en attente de validation`}
+            {count} paiement{count > 1 ? 's' : ''} en attente
           </p>
-          <p className="mt-1 text-sm text-amber-900/90">
-            Finalisez votre paiement sur PayTech ou consultez le statut ci-dessous.
+          <p className="mt-0.5 text-amber-800/90">
+            Finalisez ou vérifiez le statut de votre paiement Sycapay.
           </p>
         </div>
       </div>
-      <a
-        href="#paiements-en-attente"
-        className="inline-flex shrink-0 items-center justify-center rounded-full bg-amber-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-amber-800"
+      <Link
+        to="/account#paiements-en-attente"
+        className="inline-flex shrink-0 items-center justify-center rounded-full bg-[#1a1a1a] px-4 py-2 text-xs font-semibold text-white hover:bg-black"
       >
-        Voir le détail
-      </a>
+        Voir les paiements
+      </Link>
     </div>
   );
 }
 
-/** Bandeau global (header) — lien vers le compte. */
 export function PendingPaymentsHeaderHint({ count }: Props) {
   if (count <= 0) return null;
-
   return (
     <Link
       to="/account#paiements-en-attente"
-      className="hidden items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-semibold text-amber-900 transition-colors hover:bg-amber-200 md:inline-flex"
+      className="rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-semibold text-amber-900 hover:bg-amber-200"
     >
-      <span className="h-1.5 w-1.5 rounded-full bg-amber-600" aria-hidden />
-      Paiement en attente{count > 1 ? ` (${count})` : ''}
+      {count} paiement{count > 1 ? 's' : ''} en attente
     </Link>
   );
 }

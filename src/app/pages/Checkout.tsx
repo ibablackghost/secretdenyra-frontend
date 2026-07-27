@@ -283,6 +283,7 @@ export const Checkout = () => {
           token: payment.tokenTX ?? payment.token,
           tokenTX: payment.tokenTX,
           status: payment.status ?? 'PENDING',
+          provider: 'sycapay',
           amount: total,
           redirectUrl: openUrl,
           deeplink: payment.deeplink ?? payment.deepLinks?.OM ?? null,

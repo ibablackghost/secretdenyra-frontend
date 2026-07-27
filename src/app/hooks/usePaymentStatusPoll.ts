@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { getPaymentStatus } from '../services/api/paymentApi';
 import type { CheckoutAccess } from '../lib/checkoutAccess';
 import { hasCheckoutAccess } from '../lib/checkoutAccess';
-import { isPaymentTerminal, type PaytechPaymentStatus } from '../services/payment/paytechTypes';
+import { isPaymentTerminal, type PaymentStatus } from '../services/payment/sycapayTypes';
 import { ApiError } from '../services/api/apiError';
 
 const DEFAULT_INTERVAL_MS = 5000;
@@ -13,7 +13,7 @@ type Options = {
   paymentId: string | null;
   enabled?: boolean;
   intervalMs?: number;
-  onTerminal?: (status: PaytechPaymentStatus, errorMessage: string | null) => void;
+  onTerminal?: (status: PaymentStatus, errorMessage: string | null) => void;
 };
 
 export function usePaymentStatusPoll({
@@ -23,7 +23,7 @@ export function usePaymentStatusPoll({
   intervalMs = DEFAULT_INTERVAL_MS,
   onTerminal,
 }: Options) {
-  const [status, setStatus] = useState<PaytechPaymentStatus | null>(null);
+  const [status, setStatus] = useState<PaymentStatus | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isPolling, setIsPolling] = useState(false);
   const startedAtRef = useRef<number | null>(null);

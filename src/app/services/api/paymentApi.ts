@@ -54,15 +54,6 @@ export async function initSycapayCheckoutPayment(
   return normalizeSycapayPaymentResponse(response);
 }
 
-/** @deprecated Prefer initSycapayCheckoutPayment */
-export async function initPaytechCheckoutPayment(checkoutId: string, access: CheckoutAccess = {}) {
-  return requestJson<InitSycapayPaymentResponse>(url(`/api/checkout/${checkoutId}/payment/paytech`), {
-    method: 'POST',
-    headers: checkoutRequestHeaders(access),
-    timeoutMs: 65000,
-  });
-}
-
 /** Statut paiement — JWT ou jeton invité (X-Checkout-Token). */
 export async function getPaymentStatus(paymentId: string, access: CheckoutAccess = {}) {
   return requestJson<PaymentStatusResponse>(url(`/api/payments/${paymentId}/status`), {
