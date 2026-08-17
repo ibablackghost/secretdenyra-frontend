@@ -22,6 +22,7 @@ import {
   unitPriceForLine,
   variantLineId,
 } from '../features/catalog/productUtils';
+import { RetailLocationsMap } from '../features/home/components/RetailLocationsMap';
 
 const HOME_SECTION_PRODUCT_LIMIT = 4;
 
@@ -217,6 +218,8 @@ export const Home = () => {
 
       {/* Popular Products */}
       {!loading && !error && <ProductGrid title="Produits populaires" products={homePopular} />}
+
+      <RetailLocationsMap />
 
       {/* Recently Viewed */}
       {!loading && !error && homeViewed.length > 0 && (
