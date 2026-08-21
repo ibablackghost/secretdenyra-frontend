@@ -8,6 +8,7 @@ import {
   RETAIL_MAP_ZOOM,
   type RetailLocation,
 } from '../../../data/retailLocations';
+import { useI18n } from '../../../hooks/useI18n';
 import { createSachetIcon, RETAIL_SACHET_IMAGE } from './retailMapMarkers';
 import './RetailLocationsMap.css';
 
@@ -93,13 +94,15 @@ function RetailList({
   items,
   selectedId,
   onSelect,
+  emptyLabel,
 }: {
   items: RetailLocation[];
   selectedId: string | null;
   onSelect: (loc: RetailLocation) => void;
+  emptyLabel: string;
 }) {
   if (items.length === 0) {
-    return <p className="px-4 py-6 text-sm text-gray-500">Aucun point de vente trouvé.</p>;
+    return <p className="px-4 py-6 text-sm text-gray-500">{emptyLabel}</p>;
   }
   return (
     <ul className="divide-y divide-gray-100">
@@ -134,6 +137,7 @@ function RetailList({
 }
 
 export function RetailLocationsMap() {
+  const { t } = useI18n();
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<RetailLocation | null>(null);
 
@@ -148,13 +152,12 @@ export function RetailLocationsMap() {
   return (
     <section className="max-w-[1400px] mx-auto px-4 md:px-8 py-16 md:py-20">
       <div className="mb-8 md:mb-10">
-        <p className="text-xs font-bold uppercase tracking-widest text-[#a4a374]">Où nous trouver</p>
+        <p className="text-xs font-bold uppercase tracking-widest text-[#a4a374]">{t('home.retail.eyebrow')}</p>
         <h2 className="mt-2 font-['Mulish',sans-serif] text-2xl md:text-3xl font-semibold text-[#303030]">
-          Nos points de vente
+          {t('home.retail.title')}
         </h2>
         <p className="mt-2 max-w-2xl text-sm md:text-base text-gray-600">
-          {RETAIL_LOCATIONS.length} pharmacies partenaires au Sénégal. Chaque point est marqué par un sachet Secret
-          de Nyra — cliquez sur la carte ou la liste pour trouver la pharmacie la plus proche.
+          {t('home.retail.sub', { count: RETAIL_LOCATIONS.length })}
         </p>
       </div>
 
@@ -168,7 +171,7 @@ export function RetailLocationsMap() {
                   type="search"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Rechercher une pharmacie ou une ville…"
+                  placeholder={t('home.retail.search')}
                   className="w-full rounded-xl border border-gray-200 bg-[#fafafa] py-2.5 pl-10 pr-3 text-sm outline-none ring-[#a4a374] focus:border-[#a4a374] focus:ring-1"
                 />
               </label>
@@ -178,6 +181,7 @@ export function RetailLocationsMap() {
                 items={filtered}
                 selectedId={selected?.id ?? null}
                 onSelect={(loc) => setSelected(loc)}
+                emptyLabel={t('home.retail.empty')}
               />
             </div>
           </div>

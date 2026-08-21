@@ -10,6 +10,7 @@ import { ProductPageSkeleton } from '../features/catalog/components/ProductPageS
 import { MediaImage } from '../components/ui/MediaImage';
 import { ProductCard } from '../features/catalog/components/ProductCard';
 import { useToast } from '../hooks/useToast';
+import { useI18n } from '../hooks/useI18n';
 import { useCartAddedBarStore } from '../store/cartAddedBarStore';
 import type { UIProduct, UIProductVariant } from '../features/catalog/types';
 import {
@@ -27,6 +28,7 @@ import { ProfessionalPriceHint } from '../components/catalog/ProfessionalPriceHi
 
 export const Product = () => {
   const { slug } = useParams();
+  const { t } = useI18n();
   const { products, loading, error } = useCatalog();
   const product = products.find((p) => p.slug === slug);
   const { addItem } = useCartStore();
@@ -44,12 +46,12 @@ export const Product = () => {
   const { shouldHidePrice, canPurchaseProduct } = useHerboristeriePriceAccess();
   const pushViewed = useViewedProductsStore((s) => s.push);
 
-  const seoTitle = product?.metaTitle?.trim() || product?.name || 'Produit';
+  const seoTitle = product?.metaTitle?.trim() || product?.name || t('product.defaultSeo');
   const seoDescription =
     product?.metaDescription?.trim() ||
     product?.shortDescription?.trim() ||
     product?.ingredients ||
-    'Produit Secret de Nyra.';
+    t('product.defaultSeoDesc');
 
   useSeo({
     title: seoTitle,
@@ -237,7 +239,7 @@ export const Product = () => {
             <span className="truncate">Ajouté</span>
           </>
         ) : isInStock ? (
-          <span className="truncate">Ajouter au panier</span>
+          <span className="truncate">{t('product.addToCart')}</span>
         ) : (
           <span className="truncate">Indisponible</span>
         )}
@@ -249,14 +251,14 @@ export const Product = () => {
     <div className="mx-auto max-w-[1400px] px-4 pb-28 md:px-8 md:pb-16 md:py-16 py-8">
       <nav
         className="mb-6 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-gray-500 sm:mb-8 sm:gap-x-2 sm:text-sm font-['Mulish',sans-serif]"
-        aria-label="Fil d'Ariane"
+        aria-label={t('product.breadcrumb')}
       >
         <Link to="/" className="hover:text-[#1a1a1a] transition-colors shrink-0">
-          Accueil
+          {t('common.home')}
         </Link>
         <span className="text-gray-300 shrink-0">/</span>
         <Link to="/shop" className="hover:text-[#1a1a1a] transition-colors shrink-0">
-          Boutique
+          {t('common.shop')}
         </Link>
         <span className="text-gray-300 shrink-0">/</span>
         <Link
@@ -274,7 +276,7 @@ export const Product = () => {
           <div className="w-full aspect-[4/5] sm:aspect-square rounded-[16px] flex items-center justify-center p-8 relative overflow-hidden bg-white">
             <button
               type="button"
-              aria-label={inWishlist ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+              aria-label={inWishlist ? t('product.removeWishlist') : t('product.addWishlist')}
               onClick={() => handleToggleWishlist(product, inWishlist)}
               className="absolute right-4 top-4 z-10 flex h-11 w-11 touch-manipulation items-center justify-center rounded-full bg-white/95 text-gray-700 shadow-md transition-colors hover:bg-white sm:right-6 sm:top-6 sm:h-12 sm:w-12"
             >
@@ -297,7 +299,7 @@ export const Product = () => {
                   selectedImageIndex === index ? 'border-[#a4a374]' : 'border-transparent hover:border-gray-200'
                 } p-2 flex items-center justify-center transition-colors`}
               >
-                <MediaImage src={image} alt={`Vue ${index + 1}`} className="w-full h-full object-contain" fallbackClassName="w-full h-full" />
+                <MediaImage src={image} alt={t('product.view', { n: index + 1 })} className="w-full h-full object-contain" fallbackClassName="w-full h-full" />
               </button>
             ))}
           </div>
@@ -326,7 +328,7 @@ export const Product = () => {
                 ))}
               </div>
               <span className="text-sm text-gray-500 underline decoration-gray-300 underline-offset-4 cursor-pointer hover:text-black">
-                Voir les {product.reviews} avis
+                {t('product.reviews', { count: product.reviews })}
               </span>
             </div>
           </div>
@@ -342,7 +344,7 @@ export const Product = () => {
                 ) : null}
               </div>
               {product.variants.length > 1 ? (
-                <p className="mb-6 text-sm text-gray-500">Prix selon le format sélectionné.</p>
+                <p className="mb-6 text-sm text-gray-500">{t('product.priceByFormat')}</p>
               ) : (
                 <div className="mb-6" />
               )}
@@ -355,14 +357,14 @@ export const Product = () => {
 
           {product.variants.length > 0 ? (
             <div className="mb-8 space-y-3">
-              <h3 className="text-sm font-bold uppercase tracking-wider text-[#1a1a1a]">Format</h3>
+              <h3 className="text-sm font-bold uppercase tracking-wider text-[#1a1a1a]">{t('product.format')}</h3>
               <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-2">
                 {product.variants.map((variant) => {
                   const active = resolvedVariant
                     ? variantLineId(resolvedVariant) === variantLineId(variant)
                     : false;
                   const disabled = variant.inStock === false || (typeof variant.stockQty === 'number' && variant.stockQty <= 0);
-                  const label = variant.label ?? variant.format ?? variant.name ?? variant.size ?? 'Option';
+                  const label = variant.label ?? variant.format ?? variant.name ?? variant.size ?? t('product.option');
                   const vPrice = variant.price ?? product.price;
                   return (
                     <button
@@ -439,7 +441,7 @@ export const Product = () => {
 
       <div
         className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white/95 p-4 shadow-[0_-8px_24px_rgba(0,0,0,0.08)] backdrop-blur-md pb-[max(1rem,env(safe-area-inset-bottom))] md:hidden"
-        aria-label="Ajouter au panier"
+        aria-label={t('product.addToCart')}
       >
         <div className="mx-auto flex max-w-[1400px] items-stretch gap-3">{purchaseControls}</div>
       </div>

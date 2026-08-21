@@ -4,6 +4,7 @@ import { Header } from './Header';
 import { Footer } from './Footer';
 import { ToastViewport } from '../ui/ToastViewport';
 import { CartAddedBar } from '../ui/CartAddedBar';
+import { useLocaleStore } from '../../store/localeStore';
 
 const ScrollToTop = () => {
   const { pathname } = useLocation();
@@ -16,6 +17,12 @@ const ScrollToTop = () => {
 };
 
 export const Layout = () => {
+  const locale = useLocaleStore((s) => s.locale);
+
+  useEffect(() => {
+    document.documentElement.lang = locale;
+  }, [locale]);
+
   return (
     <div className="min-h-screen flex flex-col font-['Mulish',sans-serif] bg-[#fafafa] text-[#131313]">
       <ScrollToTop />
@@ -23,7 +30,7 @@ export const Layout = () => {
         href="#main-content"
         className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[80] rounded bg-black px-4 py-2 text-sm font-semibold text-white"
       >
-        Aller au contenu principal
+        {locale === 'en' ? 'Skip to main content' : 'Aller au contenu principal'}
       </a>
       <Header />
       <main id="main-content" className="flex-1 w-full">

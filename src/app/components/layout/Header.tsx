@@ -7,10 +7,48 @@ import { useWishlistStore } from '../../store/wishlistStore';
 import { HeaderSearchPanel } from './HeaderSearchPanel';
 import { PendingPaymentsHeaderHint } from '../../features/account/components/PendingPaymentsBanner';
 import { selectAwaitingPayments, usePendingPaymentsStore } from '../../store/pendingPaymentsStore';
+import { useI18n } from '../../hooks/useI18n';
+import type { Locale } from '../../store/localeStore';
 import imgLogo from 'figma:asset/04c30533fe5a9a60b6e7341851231c595d46cb74.png';
+
+function LanguageSwitcher({ compact = false }: { compact?: boolean }) {
+  const { locale, setLocale, t } = useI18n();
+
+  const btn = (code: Locale, label: string) => {
+    const active = locale === code;
+    return (
+      <button
+        type="button"
+        onClick={() => setLocale(code)}
+        aria-pressed={active}
+        className={`rounded px-1.5 py-0.5 font-semibold transition-colors ${
+          active ? 'bg-white/20 text-white' : 'text-white/70 hover:text-white'
+        }`}
+      >
+        {label}
+      </button>
+    );
+  };
+
+  return (
+    <div
+      className={`inline-flex items-center gap-1 ${compact ? '' : ''}`}
+      role="group"
+      aria-label={t('top.lang')}
+    >
+      <Globe className="h-3 w-3 shrink-0 opacity-80" aria-hidden />
+      {btn('fr', 'FR')}
+      <span className="text-white/40" aria-hidden>
+        |
+      </span>
+      {btn('en', 'EN')}
+    </div>
+  );
+}
 
 export const Header = () => {
   const location = useLocation();
+  const { t } = useI18n();
   const cartItems = useCartStore((state) => state.items);
   const cartCount = cartItems.reduce((acc, item) => acc + item.quantity, 0);
   const user = useAuthStore((s) => s.user);
@@ -28,9 +66,9 @@ export const Header = () => {
       const local = (user.email || '').split('@')[0] || '';
       initials = local.slice(0, 2).toUpperCase() || 'NY';
     }
-    const label = first || (user.email || '').split('@')[0] || 'Mon compte';
+    const label = first || (user.email || '').split('@')[0] || t('nav.account');
     return { accountLabel: label, accountInitials: initials };
-  }, [user]);
+  }, [user, t]);
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -53,21 +91,17 @@ export const Header = () => {
             <>
               <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-0.5 text-[11px] font-medium">
                 <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400" aria-hidden />
-                Connecté
+                {t('top.connected')}
               </span>
               <PendingPaymentsHeaderHint count={pendingPaymentsCount} />
             </>
           ) : null}
         </div>
-        <div className="text-center w-full md:w-auto">
-          Livraison gratuite pour les commandes de plus de 45000 XOF
-        </div>
+        <div className="text-center w-full md:w-auto">{t('top.freeShipping')}</div>
         <div className="hidden md:flex gap-4 items-center">
-          <span className="flex items-center gap-1 cursor-pointer hover:opacity-80">
-            EN <Globe className="w-3 h-3" />
-          </span>
-          <span className="flex items-center gap-1 cursor-pointer hover:opacity-80">
-            XOF <Globe className="w-3 h-3" />
+          <LanguageSwitcher />
+          <span className="flex items-center gap-1 text-white/80" title={t('top.currency')}>
+            {t('top.currency')}
           </span>
         </div>
       </div>
@@ -79,25 +113,25 @@ export const Header = () => {
 
         <nav className="hidden lg:flex flex-1 items-center justify-center gap-8 font-['Mulish',sans-serif] text-sm font-medium text-black">
           <Link to="/shop/category/secret-de-nyra" className="hover:text-[#a4a374] transition-colors">
-            Secret de Nyra
+            {t('nav.secret')}
           </Link>
           <Link to="/shop/category/thes-bio" className="hover:text-[#a4a374] transition-colors">
-            Thé bio
+            {t('nav.teaBio')}
           </Link>
           <Link to="/shop/category/tisanes" className="hover:text-[#a4a374] transition-colors">
-            Tisanes
+            {t('nav.tisanes')}
           </Link>
           <Link to="/shop/category/herboristerie" className="hover:text-[#a4a374] transition-colors">
-            Herboristerie
+            {t('nav.herboristerie')}
           </Link>
           <Link to="/shop/category/cafes" className="hover:text-[#a4a374] transition-colors">
-            Cafés
+            {t('nav.cafes')}
           </Link>
           <Link to="/shop/category/accessoires" className="hover:text-[#a4a374] transition-colors">
-            Accessoires
+            {t('nav.accessoires')}
           </Link>
           <Link to="/shop" className="hover:text-[#a4a374] transition-colors uppercase tracking-wider">
-            VOTRE MARQUE
+            {t('nav.brand')}
           </Link>
         </nav>
 
@@ -105,8 +139,8 @@ export const Header = () => {
           <Link
             to={user ? '/account' : '/login'}
             className="flex p-2 hover:bg-gray-50 rounded-full transition-colors lg:items-center lg:gap-2 lg:py-1 lg:pl-1 lg:pr-2"
-            title={user ? 'Mon compte' : 'Connexion'}
-            aria-label={user ? `Mon compte (${accountLabel})` : 'Connexion'}
+            title={user ? t('nav.account') : t('nav.login')}
+            aria-label={user ? `${t('nav.account')} (${accountLabel})` : t('nav.login')}
           >
             {user && accountInitials ? (
               <>
@@ -128,7 +162,7 @@ export const Header = () => {
           <button
             type="button"
             className="flex p-2 hover:bg-gray-50 rounded-full transition-colors"
-            aria-label="Rechercher"
+            aria-label={t('nav.search')}
             aria-expanded={searchOpen}
             onClick={() => setSearchOpen(true)}
           >
@@ -137,7 +171,7 @@ export const Header = () => {
           <button
             type="button"
             className="flex p-2 hover:bg-gray-50 rounded-full transition-colors lg:hidden"
-            aria-label={mobileMenuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
+            aria-label={mobileMenuOpen ? t('nav.closeMenu') : t('nav.openMenu')}
             aria-expanded={mobileMenuOpen}
             onClick={() => setMobileMenuOpen((prev) => !prev)}
           >
@@ -167,31 +201,35 @@ export const Header = () => {
       {mobileMenuOpen && (
         <div className="lg:hidden border-t border-gray-100 bg-white nyra-menu-enter">
           <nav className="max-w-[1400px] mx-auto px-4 py-4 flex flex-col gap-1 font-['Mulish',sans-serif]">
+            <div className="mb-2 flex items-center justify-between rounded-lg bg-[#333] px-3 py-2 text-white">
+              <LanguageSwitcher compact />
+              <span className="text-xs text-white/80">{t('top.currency')}</span>
+            </div>
             <Link to="/shop/category/secret-de-nyra" className="px-3 py-2 rounded-md hover:bg-gray-50 transition-colors">
-              Secret de Nyra
+              {t('nav.secret')}
             </Link>
             <Link to="/shop/category/thes-bio" className="px-3 py-2 rounded-md hover:bg-gray-50 transition-colors">
-              Thé bio
+              {t('nav.teaBio')}
             </Link>
             <Link to="/shop/category/tisanes" className="px-3 py-2 rounded-md hover:bg-gray-50 transition-colors">
-              Tisanes
+              {t('nav.tisanes')}
             </Link>
             <Link to="/shop/category/herboristerie" className="px-3 py-2 rounded-md hover:bg-gray-50 transition-colors">
-              Herboristerie
+              {t('nav.herboristerie')}
             </Link>
             <Link to="/shop/category/cafes" className="px-3 py-2 rounded-md hover:bg-gray-50 transition-colors">
-              Cafés
+              {t('nav.cafes')}
             </Link>
             <Link to="/shop/category/accessoires" className="px-3 py-2 rounded-md hover:bg-gray-50 transition-colors">
-              Accessoires
+              {t('nav.accessoires')}
             </Link>
             <Link to="/shop" className="px-3 py-2 rounded-md hover:bg-gray-50 transition-colors uppercase tracking-wider">
-              VOTRE MARQUE
+              {t('nav.brand')}
             </Link>
             <div className="mt-3 flex gap-4 border-t border-gray-100 pt-3">
               <Link to="/wishlist" className="relative flex items-center gap-2 text-sm font-medium text-[#1a1a1a] hover:text-[#a4a374]">
                 <Heart className="h-5 w-5" />
-                Favoris
+                {t('nav.wishlist')}
                 {wishCount > 0 ? (
                   <span className="rounded-full bg-[#a4a374] px-1.5 py-0.5 text-[10px] font-bold text-white">
                     {wishCount > 99 ? '99+' : wishCount}
@@ -200,7 +238,7 @@ export const Header = () => {
               </Link>
               <Link to="/cart" className="relative flex items-center gap-2 text-sm font-medium text-[#1a1a1a] hover:text-[#a4a374]">
                 <ShoppingBag className="h-5 w-5" />
-                Panier
+                {t('nav.cart')}
                 {cartCount > 0 ? (
                   <span className="rounded-full bg-[#a4a374] px-1.5 py-0.5 text-[10px] font-bold text-white">
                     {cartCount > 99 ? '99+' : cartCount}
@@ -217,8 +255,10 @@ export const Header = () => {
                   {accountInitials}
                 </span>
                 <span className="flex flex-col items-start gap-0.5">
-                  <span className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Connecté</span>
-                  <span className="line-clamp-1">Mon compte · {accountLabel}</span>
+                  <span className="text-xs font-semibold uppercase tracking-wide text-emerald-700">{t('top.connected')}</span>
+                  <span className="line-clamp-1">
+                    {t('nav.account')} · {accountLabel}
+                  </span>
                 </span>
               </Link>
             ) : (
@@ -226,7 +266,7 @@ export const Header = () => {
                 to="/login"
                 className="mt-2 border-t border-gray-100 px-3 py-3 text-sm font-medium text-[#a4a374] hover:underline"
               >
-                Se connecter
+                {t('nav.signIn')}
               </Link>
             )}
           </nav>

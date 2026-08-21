@@ -14,7 +14,9 @@ import {
   productMatchesEffect,
 } from '../features/catalog/shopFilters';
 import { useToast } from '../hooks/useToast';
+import { useI18n } from '../hooks/useI18n';
 import { useCartAddedBarStore } from '../store/cartAddedBarStore';
+import { localizeSlugLabel } from '../i18n/catalogLocalize';
 import type { UIProduct } from '../features/catalog/types';
 import { useSeo } from '../hooks/useSeo';
 import { trackAddToCart } from '../services/analytics/tracking';
@@ -72,6 +74,7 @@ export const Shop = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const { t, locale } = useI18n();
   const { categorySlug } = useParams();
   const categoryFilter = categorySlug ?? searchParams.get('category') ?? '';
   const teaFamilyTagFilter = searchParams.get('teaTag') ?? '';
@@ -97,7 +100,7 @@ export const Shop = () => {
   const showCartBar = useCartAddedBarStore((s) => s.show);
 
   const categoryDisplayName = useMemo(() => {
-    if (!categoryFilter) return 'Catalogue';
+    if (!categoryFilter) return t('shop.catalog');
     const hit = categories.find(
       (c) =>
         c.slug === categoryFilter ||
@@ -106,18 +109,20 @@ export const Shop = () => {
         (isCoffeeCategorySlug(categoryFilter) && isCoffeeCategorySlug(c.slug))
     );
     if (hit?.name) return hit.name;
-    if (categoryFilter === 'thes-bio') return 'Thé bio';
-    if (categoryFilter === 'tisanes') return 'Tisanes';
-    if (isCoffeeCategorySlug(categoryFilter)) return 'Cafés';
-    return categoryFilter.replace(/-/g, ' ');
-  }, [categoryFilter, categories]);
+    if (categoryFilter === 'thes-bio') return localizeSlugLabel('thes-bio', 'Thés bio', locale);
+    if (categoryFilter === 'tisanes') return localizeSlugLabel('tisanes', 'Tisanes', locale);
+    if (isCoffeeCategorySlug(categoryFilter)) return localizeSlugLabel('cafes', 'Cafés', locale);
+    return localizeSlugLabel(categoryFilter, categoryFilter.replace(/-/g, ' '), locale);
+  }, [categoryFilter, categories, locale, t]);
 
   const selectedCategoryName = categoryFilter ? categoryDisplayName : '';
   useSeo({
-    title: selectedCategoryName ? `${selectedCategoryName} - Boutique` : 'Boutique',
+    title: selectedCategoryName
+      ? t('shop.seo.titleCategory', { name: selectedCategoryName })
+      : t('shop.seo.title'),
     description: selectedCategoryName
-      ? `Découvrez notre sélection ${selectedCategoryName} avec filtres et tri.`
-      : 'Catalogue Secret de Nyra: thés, infusions et accessoires.',
+      ? t('shop.seo.descriptionCategory', { name: selectedCategoryName })
+      : t('shop.seo.description'),
     canonicalPath: categoryFilter ? `/shop/category/${categoryFilter}` : '/shop',
   });
 
@@ -301,7 +306,7 @@ export const Shop = () => {
         <div className="mb-8">
           <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
             <Link to="/" className="hover:text-black transition-colors">
-              Home
+              {t('common.home')}
             </Link>
             <span className="text-gray-300">&gt;</span>
             <span className="text-black font-medium">{categoryDisplayName}</span>
@@ -315,7 +320,7 @@ export const Shop = () => {
               aria-expanded={filtersOpen}
             >
               <Menu className="h-4 w-4" />
-              Filtres
+              {t('shop.filters')}
               {activeFilterCount > 0 ? (
                 <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#a4a374] px-1 text-[10px] font-bold text-white">
                   {activeFilterCount}
@@ -323,16 +328,16 @@ export const Shop = () => {
               ) : null}
             </button>
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-gray-500 font-['Mulish',sans-serif]">Trier</span>
+              <span className="text-sm font-medium text-gray-500 font-['Mulish',sans-serif]">{t('shop.sort')}</span>
               <select
                 value={sortBy}
                 onChange={(e) => updateQuery({ sort: e.target.value, page: '1' })}
                 className="rounded-lg border border-gray-200 bg-white px-2 py-2 text-base font-bold text-[#1a1a1a] focus:border-[#a4a374] focus:outline-none font-['Mulish',sans-serif]"
               >
-                <option value="popular">Popularité</option>
-                <option value="price-low">Prix croissant</option>
-                <option value="price-high">Prix décroissant</option>
-                <option value="rating">Mieux notés</option>
+                <option value="popular">{t('shop.sort.popular')}</option>
+                <option value="price-low">{t('shop.sort.priceLow')}</option>
+                <option value="price-high">{t('shop.sort.priceHigh')}</option>
+                <option value="rating">{t('shop.sort.rating')}</option>
               </select>
             </div>
           </div>
@@ -342,36 +347,31 @@ export const Shop = () => {
               <h1 className="font-['Mulish',sans-serif] text-3xl md:text-4xl font-bold text-[#1a1a1a]">{categoryDisplayName}</h1>
               {!loading && !error ? (
                 <p className="mt-1 text-sm text-gray-500 font-['Mulish',sans-serif]">
-                  {totalItems} produit{totalItems !== 1 ? 's' : ''}
-                  {searchQuery ? (
-                    <>
-                      {' '}
-                      pour « <span className="font-medium text-[#1a1a1a]">{searchQuery}</span> »
-                    </>
-                  ) : null}
-                  {totalPages > 1 ? ` · page ${safePage} / ${totalPages}` : ''}
+                  {t(totalItems === 1 ? 'shop.productsCount' : 'shop.productsCount_plural', { count: totalItems })}
+                  {searchQuery ? <> {t('shop.forQuery', { q: searchQuery })}</> : null}
+                  {totalPages > 1 ? ` · ${t('shop.pageOf', { page: safePage, total: totalPages })}` : ''}
                 </p>
               ) : null}
             </div>
 
             <div className="hidden md:flex items-center gap-2">
-              <span className="text-sm font-medium text-gray-500">Trier par</span>
+              <span className="text-sm font-medium text-gray-500">{t('shop.sortBy')}</span>
               <select
                 value={sortBy}
                 onChange={(e) => updateQuery({ sort: e.target.value, page: '1' })}
                 className="bg-transparent border-none text-base font-bold text-[#1a1a1a] focus:outline-none cursor-pointer"
               >
-                <option value="popular">Popularité</option>
-                <option value="price-low">Prix croissant</option>
-                <option value="price-high">Prix décroissant</option>
-                <option value="rating">Mieux notés</option>
+                <option value="popular">{t('shop.sort.popular')}</option>
+                <option value="price-low">{t('shop.sort.priceLow')}</option>
+                <option value="price-high">{t('shop.sort.priceHigh')}</option>
+                <option value="rating">{t('shop.sort.rating')}</option>
               </select>
             </div>
           </div>
         </div>
 
         {loading ? (
-          <LoadingState message="Chargement des produits..." className="py-20" />
+          <LoadingState message={t('common.loadingProducts')} className="py-20" />
         ) : error ? (
           <ErrorState message={error} className="py-20" />
         ) : paginatedProducts.length > 0 ? (
@@ -388,8 +388,8 @@ export const Shop = () => {
           </div>
         ) : (
           <EmptyState
-            title="Aucun produit trouvé"
-            description={searchQuery ? 'Essayez un autre terme ou ajustez vos filtres.' : 'Essayez d\'ajuster vos filtres.'}
+            title={t('shop.emptyTitle')}
+            description={searchQuery ? t('shop.emptyHintSearch') : t('shop.emptyHint')}
             className="py-20"
             action={
               <button
@@ -397,7 +397,7 @@ export const Shop = () => {
                 onClick={resetFilters}
                 className="text-[#a4a374] font-medium hover:underline"
               >
-                Réinitialiser les filtres
+                {t('shop.resetFilters')}
               </button>
             }
           />
@@ -467,25 +467,25 @@ export const Shop = () => {
           <button
             type="button"
             className="absolute inset-0 bg-black/40"
-            aria-label="Fermer les filtres"
+            aria-label={t('shop.closeFilters')}
             onClick={() => setFiltersOpen(false)}
           />
           <aside
             className="absolute inset-y-0 left-0 flex w-[min(100%,320px)] flex-col bg-white shadow-2xl nyra-menu-enter"
             role="dialog"
             aria-modal="true"
-            aria-label="Filtres du catalogue"
+            aria-label={t('shop.filtersDialog')}
           >
             <div className="flex items-center justify-between border-b border-gray-100 px-4 py-4">
               <div className="flex items-center gap-2 font-bold text-lg text-[#1a1a1a] font-['Mulish',sans-serif]">
                 <SlidersHorizontal className="h-5 w-5" />
-                Filtres
+                {t('shop.filters')}
               </div>
               <button
                 type="button"
                 onClick={() => setFiltersOpen(false)}
                 className="flex h-9 w-9 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100"
-                aria-label="Fermer"
+                aria-label={t('shop.close')}
               >
                 <X className="h-5 w-5" />
               </button>

@@ -26,6 +26,14 @@ type StrapiProduct = {
   name?: string;
   slug?: string;
   ingredients?: string;
+  shortDescription?: string;
+  description?: string;
+  dosage?: string;
+  infusionTime?: string;
+  temperature?: string;
+  origin?: string;
+  botanicalName?: string;
+  sourceUrl?: string;
   price?: number;
   compareAtPrice?: number;
   rating?: number;
@@ -33,6 +41,8 @@ type StrapiProduct = {
   stockQty?: number;
   inStock?: boolean;
   bgClass?: string;
+  metaTitle?: string;
+  metaDescription?: string;
   image?: StrapiMedia | { data?: StrapiEntity<StrapiMedia> };
   gallery?: Array<StrapiMedia | { data?: StrapiEntity<StrapiMedia> }> | { data?: Array<StrapiEntity<StrapiMedia>> };
   variants?:
@@ -213,6 +223,14 @@ function mapProduct(entity: StrapiEntity<StrapiProduct>): UIProduct | null {
     strapiId,
     name,
     ingredients: getString(readField(entity, 'ingredients')),
+    shortDescription: getString(readField(entity, 'shortDescription')) || null,
+    description: getString(readField(entity, 'description')) || null,
+    dosage: getString(readField(entity, 'dosage')) || null,
+    infusionTime: getString(readField(entity, 'infusionTime')) || null,
+    temperature: getString(readField(entity, 'temperature')) || null,
+    origin: getString(readField(entity, 'origin')) || null,
+    botanicalName: getString(readField(entity, 'botanicalName')) || null,
+    sourceUrl: getString(readField(entity, 'sourceUrl')) || null,
     price: getNumber(readField(entity, 'price')),
     compareAtPrice: getNumber(readField(entity, 'compareAtPrice'), 0) || undefined,
     rating: getNumber(readField(entity, 'rating')),
@@ -222,6 +240,8 @@ function mapProduct(entity: StrapiEntity<StrapiProduct>): UIProduct | null {
     gallery: [mainImage, ...gallery].filter(Boolean),
     stockQty: getNumber(readField(entity, 'stockQty'), 0) || undefined,
     inStock: (readField(entity, 'inStock') as boolean | undefined) ?? true,
+    metaTitle: getString(readField(entity, 'metaTitle')) || null,
+    metaDescription: getString(readField(entity, 'metaDescription')) || null,
     variants,
     category: { slug: categorySlug, name: getString(readField(categoryEntity, 'name'), categorySlug) },
     tags,

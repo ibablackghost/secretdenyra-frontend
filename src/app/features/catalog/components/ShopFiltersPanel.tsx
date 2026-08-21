@@ -1,8 +1,7 @@
 import { RotateCcw, SlidersHorizontal } from 'lucide-react';
-import {
-  SHOP_EFFECT_FILTERS,
-  type ShopFormatOption,
-} from '../shopFilters';
+import { useI18n } from '../../../hooks/useI18n';
+import { localizeEffectLabel, localizeFormatLabel } from '../../../i18n/catalogLocalize';
+import { SHOP_EFFECT_FILTERS, type ShopFormatOption } from '../shopFilters';
 import type { UICategory, UITag } from '../types';
 
 type ShopFiltersPanelProps = {
@@ -32,6 +31,8 @@ export function ShopFiltersPanel({
   onFilterApplied,
   showTitle = true,
 }: ShopFiltersPanelProps) {
+  const { t, locale } = useI18n();
+
   const apply = (entries: Record<string, string | null>) => {
     onUpdate(entries);
     onFilterApplied?.();
@@ -51,13 +52,13 @@ export function ShopFiltersPanel({
         <div className="flex items-center justify-between pb-4 border-b border-gray-100">
           <div className="flex items-center gap-2 text-[#1a1a1a] font-bold text-xl font-['Mulish',sans-serif]">
             <SlidersHorizontal className="w-5 h-5" />
-            Filtres
+            {t('shop.filters')}
           </div>
           <button
             type="button"
             onClick={onReset}
             className="w-8 h-8 flex items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:text-black hover:border-black transition-colors"
-            aria-label="Réinitialiser les filtres"
+            aria-label={t('shop.resetFilters')}
           >
             <RotateCcw className="w-4 h-4" />
           </button>
@@ -65,24 +66,25 @@ export function ShopFiltersPanel({
       ) : null}
 
       <div className="space-y-4">
-        <h3 className="font-bold text-lg text-[#1a1a1a] font-['Mulish',sans-serif]">Effets recherchés</h3>
+        <h3 className="font-bold text-lg text-[#1a1a1a] font-['Mulish',sans-serif]">{t('shop.effects')}</h3>
         <div className="flex items-center gap-3 flex-wrap">
           {SHOP_EFFECT_FILTERS.map((effect) => {
             const selected = effectFilter === effect.slug;
+            const label = localizeEffectLabel(effect.slug, locale);
             return (
               <button
                 key={effect.slug}
                 type="button"
                 onClick={() => toggleEffect(effect.slug)}
                 aria-pressed={selected}
-                aria-label={`Filtrer par ${effect.label}`}
+                aria-label={label}
                 className={`w-10 h-10 rounded-full border-2 shadow-sm flex items-center justify-center group relative transition-transform hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 ${
                   selected ? 'border-black scale-110' : 'border-transparent'
                 }`}
                 style={{ backgroundColor: effect.color }}
               >
                 <span className="absolute -top-8 bg-black text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
-                  {effect.label}
+                  {label}
                 </span>
               </button>
             );
@@ -90,17 +92,15 @@ export function ShopFiltersPanel({
         </div>
         {effectFilter ? (
           <p className="text-xs text-gray-500">
-            Effet actif :{' '}
-            <span className="font-semibold text-[#1a1a1a]">
-              {SHOP_EFFECT_FILTERS.find((item) => item.slug === effectFilter)?.label ?? effectFilter}
-            </span>
+            {t('shop.effectActive')}{' '}
+            <span className="font-semibold text-[#1a1a1a]">{localizeEffectLabel(effectFilter, locale)}</span>
           </p>
         ) : null}
       </div>
 
       {availableFormats.length > 0 ? (
         <div className="space-y-4">
-          <h3 className="font-bold text-lg text-[#1a1a1a] font-['Mulish',sans-serif]">Format</h3>
+          <h3 className="font-bold text-lg text-[#1a1a1a] font-['Mulish',sans-serif]">{t('shop.format')}</h3>
           <div className="flex flex-wrap gap-2">
             {availableFormats.map((format) => {
               const selected = formatFilter === format.key;
@@ -116,7 +116,7 @@ export function ShopFiltersPanel({
                       : 'border border-gray-200 font-medium text-gray-600 hover:border-black focus:border-black focus:text-black'
                   }`}
                 >
-                  {format.label}
+                  {localizeFormatLabel(format.key, locale)}
                 </button>
               );
             })}
@@ -125,7 +125,7 @@ export function ShopFiltersPanel({
       ) : null}
 
       <div className="space-y-4">
-        <h3 className="font-bold text-lg text-[#1a1a1a] font-['Mulish',sans-serif]">Catégories</h3>
+        <h3 className="font-bold text-lg text-[#1a1a1a] font-['Mulish',sans-serif]">{t('shop.categories')}</h3>
         <div className="flex flex-col gap-3">
           <label className="flex items-center gap-3 cursor-pointer group">
             <input
@@ -136,7 +136,7 @@ export function ShopFiltersPanel({
               className="w-4 h-4 text-black border-gray-300 focus:ring-black cursor-pointer accent-black"
             />
             <span className={`text-sm ${!categoryFilter ? 'font-bold text-black' : 'text-gray-600 group-hover:text-black'}`}>
-              Tous nos thés
+              {t('shop.allTeas')}
             </span>
           </label>
           {categories.map((cat) => (
@@ -160,7 +160,7 @@ export function ShopFiltersPanel({
 
       {tags.length > 0 ? (
         <div className="space-y-4">
-          <h3 className="font-bold text-lg text-[#1a1a1a] font-['Mulish',sans-serif]">Famille de thé (tags)</h3>
+          <h3 className="font-bold text-lg text-[#1a1a1a] font-['Mulish',sans-serif]">{t('shop.teaFamilies')}</h3>
           <div className="flex flex-col gap-3">
             <label className="flex items-center gap-3 cursor-pointer group">
               <input
@@ -171,7 +171,7 @@ export function ShopFiltersPanel({
                 className="w-4 h-4 text-black border-gray-300 focus:ring-black cursor-pointer accent-black"
               />
               <span className={`text-sm ${!teaFamilyTagFilter ? 'font-bold text-black' : 'text-gray-600 group-hover:text-black'}`}>
-                Tous les tags
+                {t('shop.allTags')}
               </span>
             </label>
             {tags.map((tag) => (
