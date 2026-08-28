@@ -58,6 +58,9 @@ const fr = {
   'footer.secured': 'Paiement sécurisé',
   'footer.localeLabel': 'Sénégal · Français',
 
+  'social.followUs': 'Suivez-nous',
+  'social.marqueeLabel': 'Nos réseaux sociaux',
+
   'common.loadingProducts': 'Chargement des produits…',
   'common.home': 'Accueil',
   'common.shop': 'Boutique',
@@ -166,6 +169,9 @@ const en: Record<keyof typeof fr, string> = {
   'footer.account': 'Account',
   'footer.secured': 'Secured payment',
   'footer.localeLabel': 'Senegal · English',
+
+  'social.followUs': 'Follow us',
+  'social.marqueeLabel': 'Our social media',
 
   'common.loadingProducts': 'Loading products…',
   'common.home': 'Home',

@@ -24,6 +24,7 @@ import {
   variantLineId,
 } from '../features/catalog/productUtils';
 import { RetailLocationsMap } from '../features/home/components/RetailLocationsMap';
+import { SocialMarquee } from '../components/layout/SocialMarquee';
 
 const HOME_SECTION_PRODUCT_LIMIT = 4;
 
@@ -120,34 +121,35 @@ export const Home = () => {
   return (
     <div className="w-full pb-20">
       <section className="relative bg-[#edede3] w-full overflow-hidden">
-        <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-16 md:py-24 lg:py-32 flex flex-col md:flex-row items-center">
-          <div className="w-full md:w-1/2 z-10 flex flex-col items-start gap-8 nyra-reveal">
-            <h1 className="font-['Flamenco',sans-serif] text-5xl md:text-6xl lg:text-[61px] leading-[1.1] text-[#131313] tracking-[-0.4px]">
+        <div className="max-w-[1400px] mx-auto px-4 md:px-8 pt-10 pb-8 md:pt-12 md:pb-10 lg:pt-14 lg:pb-10 flex flex-col md:flex-row items-center">
+          <div className="w-full md:w-1/2 z-10 flex flex-col items-start gap-5 md:gap-6 nyra-reveal">
+            <h1 className="font-['Flamenco',sans-serif] text-4xl md:text-5xl lg:text-[52px] leading-[1.1] text-[#131313] tracking-[-0.4px]">
               {t('home.hero.title.1')} <span className="text-[#8d8c5d]">{t('home.hero.title.pure')}</span>
               {t('home.hero.title.2')} <span className="text-[#8d8c5d]">{t('home.hero.title.infused')}</span>{' '}
               {t('home.hero.title.3')}
             </h1>
-            <p className="font-['Mulish',sans-serif] text-lg md:text-xl lg:text-[24px] leading-[30px] text-[#131313] max-w-lg">
+            <p className="font-['Mulish',sans-serif] text-base md:text-lg lg:text-xl leading-relaxed text-[#131313] max-w-lg">
               {t('home.hero.sub')}
             </p>
             <Link
               to="/shop"
-              className="bg-[#a4a374] text-white px-8 py-4 rounded-full font-semibold text-lg md:text-xl flex items-center gap-3 hover:bg-[#8d8c5d] transition-colors shadow-sm"
+              className="bg-[#a4a374] text-white px-7 py-3.5 rounded-full font-semibold text-base md:text-lg flex items-center gap-3 hover:bg-[#8d8c5d] transition-colors shadow-sm"
             >
               {t('home.hero.cta')}
               <ArrowRight className="w-5 h-5" />
             </Link>
           </div>
-          <div className="w-full md:w-1/2 relative mt-12 md:mt-0 nyra-reveal" style={{ animationDelay: '180ms' }}>
+          <div className="w-full md:w-1/2 relative mt-8 md:mt-0 nyra-reveal" style={{ animationDelay: '180ms' }}>
             <img
               src={image_Gemini_Generated_Image_4hyvy04hyvy04hyv_1}
               alt="Tea preparation"
               loading="eager"
-              className="w-full h-auto object-cover max-w-[800px] ml-auto mix-blend-multiply"
+              className="w-full h-auto object-cover max-w-[680px] ml-auto mix-blend-multiply"
             />
             <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[#edede3]/80 md:hidden" />
           </div>
         </div>
+        <SocialMarquee />
       </section>
 
       {loading ? (
