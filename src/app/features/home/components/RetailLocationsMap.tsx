@@ -30,11 +30,12 @@ function RetailLeafletMap({
 
     const map = L.map(containerRef.current, {
       scrollWheelZoom: false,
-      zoomControl: true,
+      zoomControl: false,
+      attributionControl: false,
     }).setView([RETAIL_MAP_CENTER.lat, RETAIL_MAP_CENTER.lng], RETAIL_MAP_ZOOM);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      attribution: '',
       maxZoom: 19,
     }).addTo(map);
 

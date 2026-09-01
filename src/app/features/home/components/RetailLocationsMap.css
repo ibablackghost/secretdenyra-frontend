@@ -41,6 +41,11 @@
   z-index: 2 !important;
 }
 
+.sdn-retail-map .leaflet-control-attribution,
+.sdn-retail-map .leaflet-control-zoom {
+  display: none !important;
+}
+
 .sdn-retail-map .leaflet-control,
 .sdn-retail-map .leaflet-top,
 .sdn-retail-map .leaflet-bottom {
