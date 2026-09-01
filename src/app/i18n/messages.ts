@@ -47,12 +47,6 @@ const fr = {
   'home.promo.flex.sub': 'Adaptez votre abonnement, faites une pause ou annulez en un clic.',
   'home.promo.routine.title': 'Routine infusée décontractée',
   'home.promo.routine.sub': 'Pour cultiver votre bien-être et votre équilibre à long terme.',
-  'home.retail.eyebrow': 'Où nous trouver',
-  'home.retail.title': 'Nos points de vente',
-  'home.retail.sub':
-    '{count} pharmacies partenaires au Sénégal. Chaque point est marqué par un sachet Secret de Nyra — cliquez sur la carte ou la liste pour trouver la pharmacie la plus proche.',
-  'home.retail.search': 'Rechercher une pharmacie ou une ville…',
-  'home.retail.empty': 'Aucun point de vente trouvé.',
 
   'footer.account': 'Compte',
   'footer.secured': 'Paiement sécurisé',
@@ -159,12 +153,6 @@ const en: Record<keyof typeof fr, string> = {
   'home.promo.flex.sub': 'Adjust your subscription, pause, or cancel in one click.',
   'home.promo.routine.title': 'An easy infused routine',
   'home.promo.routine.sub': 'To nurture your wellness and balance for the long term.',
-  'home.retail.eyebrow': 'Where to find us',
-  'home.retail.title': 'Our retail partners',
-  'home.retail.sub':
-    '{count} partner pharmacies across Senegal. Each pin is marked with a Secret de Nyra sachet — click the map or the list to find the closest pharmacy.',
-  'home.retail.search': 'Search a pharmacy or city…',
-  'home.retail.empty': 'No retail location found.',
 
   'footer.account': 'Account',
   'footer.secured': 'Secured payment',

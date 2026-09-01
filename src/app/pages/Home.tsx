@@ -23,7 +23,6 @@ import {
   unitPriceForLine,
   variantLineId,
 } from '../features/catalog/productUtils';
-import { RetailLocationsMap } from '../features/home/components/RetailLocationsMap';
 import { SocialMarquee } from '../components/layout/SocialMarquee';
 
 const HOME_SECTION_PRODUCT_LIMIT = 4;
@@ -263,8 +262,6 @@ export const Home = () => {
       </section>
 
       {!loading && !error && <ProductGrid title={t('home.popular')} products={homePopular} seeAllLabel={seeAll} />}
-
-      <RetailLocationsMap />
 
       {!loading && !error && homeViewed.length > 0 && (
         <ProductGrid title={t('home.viewed')} products={homeViewed} seeAllLabel={seeAll} />
