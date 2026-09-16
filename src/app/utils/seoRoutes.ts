@@ -17,5 +17,5 @@ export function buildSitemapXml(urls: string[], siteUrl: string) {
 }
 
 export function buildRobotsTxt(siteUrl: string) {
-  return `User-agent: *\nAllow: /\n\nSitemap: ${siteUrl}/sitemap.xml\n`;
+  return `User-agent: *\nAllow: /\nDisallow: /points-de-vente\n\nSitemap: ${siteUrl}/sitemap.xml\n`;
 }

@@ -12,7 +12,7 @@ const PaymentReturn = lazy(() => import('./pages/PaymentReturn').then((m) => ({ 
 const Login = lazy(() => import('./pages/Login').then((m) => ({ default: m.Login })));
 const Register = lazy(() => import('./pages/Register').then((m) => ({ default: m.Register })));
 const Account = lazy(() => import('./pages/Account').then((m) => ({ default: m.Account })));
-const Wishlist = lazy(() => import('./pages/Wishlist').then((m) => ({ default: m.Wishlist })));
+const PointsDeVente = lazy(() => import('./pages/PointsDeVente').then((m) => ({ default: m.PointsDeVente })));
 
 function withSuspense(Component: ComponentType) {
   return function SuspendedRoute() {
@@ -52,6 +52,7 @@ const PaymentReturnRoute = withSuspense(PaymentReturn);
 const LoginRoute = withSuspense(Login);
 const RegisterRoute = withSuspense(Register);
 const WishlistRoute = withSuspense(Wishlist);
+const PointsDeVenteRoute = withSuspense(PointsDeVente);
 const AccountPageRoute = withSuspense(Account);
 
 function AccountRoute() {
@@ -78,6 +79,7 @@ export const router = createBrowserRouter([
       { path: 'login', Component: LoginRoute },
       { path: 'register', Component: RegisterRoute },
       { path: 'wishlist', Component: WishlistRoute },
+      { path: 'points-de-vente', Component: PointsDeVenteRoute },
       { path: 'account', Component: AccountRoute },
       { path: '*', Component: HomeRoute },
     ],
