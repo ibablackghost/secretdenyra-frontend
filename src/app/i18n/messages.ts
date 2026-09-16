@@ -51,7 +51,7 @@ const fr = {
   'home.retail.eyebrow': 'Où nous trouver',
   'home.retail.title': 'Nos points de vente',
   'home.retail.sub':
-    '{count} pharmacies partenaires au Sénégal. Chaque point est marqué par un sachet Secret de Nyra — cliquez sur la carte ou la liste pour trouver la pharmacie la plus proche.',
+    'Nos pharmacies partenaires au Sénégal. Chaque point est marqué par un sachet Secret de Nyra — cliquez sur la carte ou la liste pour trouver la pharmacie la plus proche.',
   'home.retail.search': 'Rechercher une pharmacie ou une ville…',
   'home.retail.empty': 'Aucun point de vente trouvé.',
   'seo.retail.title': 'Points de vente',
