@@ -12,6 +12,7 @@ const PaymentReturn = lazy(() => import('./pages/PaymentReturn').then((m) => ({ 
 const Login = lazy(() => import('./pages/Login').then((m) => ({ default: m.Login })));
 const Register = lazy(() => import('./pages/Register').then((m) => ({ default: m.Register })));
 const Account = lazy(() => import('./pages/Account').then((m) => ({ default: m.Account })));
+const Wishlist = lazy(() => import('./pages/Wishlist').then((m) => ({ default: m.Wishlist })));
 const PointsDeVente = lazy(() => import('./pages/PointsDeVente').then((m) => ({ default: m.PointsDeVente })));
 
 function withSuspense(Component: ComponentType) {
