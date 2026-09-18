@@ -51,7 +51,7 @@ const fr = {
   'home.retail.eyebrow': 'Où nous trouver',
   'home.retail.title': 'Nos points de vente',
   'home.retail.sub':
-    'Nos pharmacies partenaires au Sénégal. Chaque point est marqué par un sachet Secret de Nyra — cliquez sur la carte ou la liste pour trouver la pharmacie la plus proche.',
+    'Merci pour votre confiance. Chaque point est marqué par un sachet Secret de Nyra — cliquez sur la carte ou la liste pour trouver la pharmacie la plus proche.',
   'home.retail.search': 'Rechercher une pharmacie ou une ville…',
   'home.retail.empty': 'Aucun point de vente trouvé.',
   'seo.retail.title': 'Points de vente',
@@ -166,7 +166,7 @@ const en: Record<keyof typeof fr, string> = {
   'home.retail.eyebrow': 'Where to find us',
   'home.retail.title': 'Our retail partners',
   'home.retail.sub':
-    '{count} partner pharmacies across Senegal. Each pin is marked with a Secret de Nyra sachet — click the map or the list to find the closest pharmacy.',
+    'Thank you for your trust. Each pin is marked with a Secret de Nyra sachet — click the map or the list to find the closest pharmacy.',
   'home.retail.search': 'Search a pharmacy or city…',
   'home.retail.empty': 'No retail location found.',
   'seo.retail.title': 'Retail locations',
