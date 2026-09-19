@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Search } from 'lucide-react';
+import { ChevronDown, Search } from 'lucide-react';
 import {
   RETAIL_LOCATIONS,
   RETAIL_MAP_CENTER,
@@ -107,6 +107,52 @@ function groupByLocality(items: RetailLocation[]) {
   return [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0], 'fr'));
 }
 
+function RetailMobileSelect({
+  items,
+  selectedId,
+  onSelect,
+  placeholder,
+  emptyLabel,
+}: {
+  items: RetailLocation[];
+  selectedId: string | null;
+  onSelect: (loc: RetailLocation) => void;
+  placeholder: string;
+  emptyLabel: string;
+}) {
+  const groups = useMemo(() => groupByLocality(items), [items]);
+
+  if (items.length === 0) {
+    return <p className="text-sm text-gray-500">{emptyLabel}</p>;
+  }
+
+  return (
+    <label className="relative block">
+      <span className="sr-only">{placeholder}</span>
+      <select
+        value={selectedId ?? ''}
+        onChange={(e) => {
+          const loc = items.find((item) => item.id === e.target.value);
+          if (loc) onSelect(loc);
+        }}
+        className="sdn-retail-select w-full appearance-none rounded-xl border border-gray-200 bg-[#fafafa] py-3 pl-4 pr-11 text-sm text-[#1a1a1a] outline-none ring-[#a4a374] focus:border-[#a4a374] focus:ring-1"
+      >
+        <option value="">{placeholder}</option>
+        {groups.map(([locality, locations]) => (
+          <optgroup key={locality} label={locality}>
+            {locations.map((loc) => (
+              <option key={loc.id} value={loc.id}>
+                {loc.name}
+              </option>
+            ))}
+          </optgroup>
+        ))}
+      </select>
+      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+    </label>
+  );
+}
+
 function RetailList({
   items,
   selectedId,
@@ -201,16 +247,26 @@ export function RetailLocationsMap() {
       </div>
 
       <div className="overflow-hidden rounded-[20px] border border-gray-100 bg-white shadow-sm md:rounded-[24px]">
+        <div className="p-3 lg:hidden">
+          <RetailMobileSelect
+            items={RETAIL_LOCATIONS}
+            selectedId={selected?.id ?? null}
+            onSelect={setSelected}
+            placeholder={t('home.retail.selectPlaceholder')}
+            emptyLabel={t('home.retail.empty')}
+          />
+        </div>
+
         <div className="grid lg:grid-cols-[minmax(280px,360px)_1fr]">
           <div
             ref={mapWrapRef}
-            className="relative z-0 isolate order-1 h-[52vw] min-h-[220px] max-h-[320px] overflow-hidden lg:order-2 lg:h-auto lg:min-h-[520px] lg:max-h-none"
+            className="relative z-0 isolate h-[62vw] min-h-[260px] max-h-[420px] overflow-hidden lg:h-auto lg:min-h-[520px] lg:max-h-none"
           >
             <RetailLeafletMap selected={selected} onSelect={setSelected} filtered={filtered} />
           </div>
 
-          <div className="order-2 flex min-h-0 flex-col border-t border-gray-100 lg:order-1 lg:border-t-0 lg:border-r">
-            <div className="sticky top-0 z-[2] border-b border-gray-100 bg-white p-3 md:p-4">
+          <div className="hidden min-h-0 flex-col border-t border-gray-100 lg:flex lg:border-t-0 lg:border-r lg:order-first">
+            <div className="border-b border-gray-100 bg-white p-4">
               <label className="relative block">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                 <input
@@ -227,7 +283,7 @@ export function RetailLocationsMap() {
                 })}
               </p>
             </div>
-            <div className="sdn-retail-list max-h-[min(42vh,380px)] overflow-y-auto lg:max-h-[520px]">
+            <div className="sdn-retail-list max-h-[520px] overflow-y-auto">
               <RetailList
                 items={filtered}
                 selectedId={selected?.id ?? null}

@@ -130,8 +130,11 @@
   object-fit: contain;
 }
 
-.sdn-retail-list {
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
-  scrollbar-width: thin;
+.sdn-retail-select {
+  font-family: inherit;
+}
+
+.sdn-retail-select option,
+.sdn-retail-select optgroup {
+  color: #1a1a1a;
 }

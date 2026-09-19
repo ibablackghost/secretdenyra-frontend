@@ -56,6 +56,7 @@ const fr = {
   'home.retail.empty': 'Aucun point de vente trouvé.',
   'home.retail.count': '{count} pharmacie',
   'home.retail.count_plural': '{count} pharmacies',
+  'home.retail.selectPlaceholder': 'Choisir une pharmacie',
   'seo.retail.title': 'Points de vente',
   'seo.retail.description': 'Pharmacies partenaires Secret de Nyra au Sénégal.',
 
@@ -173,6 +174,7 @@ const en: Record<keyof typeof fr, string> = {
   'home.retail.empty': 'No retail location found.',
   'home.retail.count': '{count} pharmacy',
   'home.retail.count_plural': '{count} pharmacies',
+  'home.retail.selectPlaceholder': 'Choose a pharmacy',
   'seo.retail.title': 'Retail locations',
   'seo.retail.description': 'Secret de Nyra partner pharmacies in Senegal.',
 
