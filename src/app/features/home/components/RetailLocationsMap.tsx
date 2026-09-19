@@ -40,8 +40,14 @@ function RetailLeafletMap({
     }).addTo(map);
 
     mapRef.current = map;
+    const invalidate = () => map.invalidateSize();
+    const timeoutId = window.setTimeout(invalidate, 80);
+    const observer = new ResizeObserver(invalidate);
+    observer.observe(containerRef.current);
 
     return () => {
+      window.clearTimeout(timeoutId);
+      observer.disconnect();
       map.remove();
       mapRef.current = null;
       markersRef.current.clear();
@@ -88,7 +94,17 @@ function RetailLeafletMap({
     marker?.openPopup();
   }, [selected]);
 
-  return <div ref={containerRef} className="sdn-retail-map h-full min-h-[360px] w-full lg:min-h-[520px]" />;
+  return <div ref={containerRef} className="sdn-retail-map h-full min-h-[240px] w-full lg:min-h-[520px]" />;
+}
+
+function groupByLocality(items: RetailLocation[]) {
+  const groups = new Map<string, RetailLocation[]>();
+  for (const loc of items) {
+    const list = groups.get(loc.locality) ?? [];
+    list.push(loc);
+    groups.set(loc.locality, list);
+  }
+  return [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0], 'fr'));
 }
 
 function RetailList({
@@ -102,38 +118,52 @@ function RetailList({
   onSelect: (loc: RetailLocation) => void;
   emptyLabel: string;
 }) {
+  const groups = useMemo(() => groupByLocality(items), [items]);
+
   if (items.length === 0) {
     return <p className="px-4 py-6 text-sm text-gray-500">{emptyLabel}</p>;
   }
+
   return (
-    <ul className="divide-y divide-gray-100">
-      {items.map((loc) => {
-        const active = selectedId === loc.id;
-        return (
-          <li key={loc.id}>
-            <button
-              type="button"
-              onClick={() => onSelect(loc)}
-              className={`flex w-full items-start gap-3 px-4 py-3 text-left transition-colors ${
-                active ? 'bg-[#f5f2ea]' : 'hover:bg-gray-50'
-              }`}
-            >
-              <span
-                className={`mt-0.5 flex h-10 w-8 shrink-0 items-center justify-center rounded-md border-2 bg-[#faf9f6] shadow-sm ${
-                  active ? 'border-[#1a1a1a] ring-2 ring-[#a4a374]' : 'border-white'
-                }`}
-              >
-                <img src={RETAIL_SACHET_IMAGE} alt="" className="sdn-list-sachet" loading="lazy" />
-              </span>
-              <span className="min-w-0">
-                <span className="block text-sm font-semibold text-[#1a1a1a]">{loc.name}</span>
-                <span className="mt-0.5 block text-xs text-gray-500">{loc.locality}</span>
-              </span>
-            </button>
-          </li>
-        );
-      })}
-    </ul>
+    <div>
+      {groups.map(([locality, locations]) => (
+        <div key={locality}>
+          <p className="sticky top-0 z-[1] bg-[#faf9f6] px-4 py-2 text-[11px] font-bold uppercase tracking-widest text-[#8a8a62]">
+            {locality}
+            <span className="ml-1.5 font-medium normal-case tracking-normal text-gray-400">{locations.length}</span>
+          </p>
+          <ul>
+            {locations.map((loc) => {
+              const active = selectedId === loc.id;
+              return (
+                <li key={loc.id}>
+                  <button
+                    type="button"
+                    onClick={() => onSelect(loc)}
+                    className={`flex min-h-11 w-full items-center gap-3 px-4 py-2.5 text-left transition-colors ${
+                      active ? 'bg-[#f5f2ea]' : 'active:bg-gray-50 hover:bg-gray-50'
+                    }`}
+                  >
+                    <span
+                      className={`flex h-9 w-7 shrink-0 items-center justify-center rounded-md border bg-[#fff] ${
+                        active ? 'border-[#1a1a1a]' : 'border-gray-100'
+                      }`}
+                    >
+                      <img src={RETAIL_SACHET_IMAGE} alt="" className="sdn-list-sachet h-7 w-5" loading="lazy" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[13px] font-semibold leading-snug text-[#1a1a1a] md:whitespace-normal md:text-sm">
+                        {loc.name}
+                      </span>
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -141,6 +171,7 @@ export function RetailLocationsMap() {
   const { t } = useI18n();
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<RetailLocation | null>(null);
+  const mapWrapRef = useRef<HTMLDivElement>(null);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -149,6 +180,13 @@ export function RetailLocationsMap() {
       (loc) => loc.name.toLowerCase().includes(q) || loc.locality.toLowerCase().includes(q)
     );
   }, [query]);
+
+  const selectLocation = (loc: RetailLocation) => {
+    setSelected(loc);
+    if (typeof window !== 'undefined' && window.matchMedia('(max-width: 1023px)').matches) {
+      mapWrapRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
 
   return (
     <section className="max-w-[1400px] mx-auto px-4 md:px-8 py-16 md:py-20">
@@ -162,10 +200,17 @@ export function RetailLocationsMap() {
         </p>
       </div>
 
-      <div className="overflow-hidden rounded-[24px] border border-gray-100 bg-white shadow-sm">
+      <div className="overflow-hidden rounded-[20px] border border-gray-100 bg-white shadow-sm md:rounded-[24px]">
         <div className="grid lg:grid-cols-[minmax(280px,360px)_1fr]">
-          <div className="border-b border-gray-100 lg:border-b-0 lg:border-r">
-            <div className="border-b border-gray-100 p-4">
+          <div
+            ref={mapWrapRef}
+            className="relative z-0 isolate order-1 h-[52vw] min-h-[220px] max-h-[320px] overflow-hidden lg:order-2 lg:h-auto lg:min-h-[520px] lg:max-h-none"
+          >
+            <RetailLeafletMap selected={selected} onSelect={setSelected} filtered={filtered} />
+          </div>
+
+          <div className="order-2 flex min-h-0 flex-col border-t border-gray-100 lg:order-1 lg:border-t-0 lg:border-r">
+            <div className="sticky top-0 z-[2] border-b border-gray-100 bg-white p-3 md:p-4">
               <label className="relative block">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                 <input
@@ -176,19 +221,20 @@ export function RetailLocationsMap() {
                   className="w-full rounded-xl border border-gray-200 bg-[#fafafa] py-2.5 pl-10 pr-3 text-sm outline-none ring-[#a4a374] focus:border-[#a4a374] focus:ring-1"
                 />
               </label>
+              <p className="mt-2 px-0.5 text-xs text-gray-500">
+                {t(filtered.length === 1 ? 'home.retail.count' : 'home.retail.count_plural', {
+                  count: filtered.length,
+                })}
+              </p>
             </div>
-            <div className="max-h-[320px] overflow-y-auto lg:max-h-[520px]">
+            <div className="sdn-retail-list max-h-[min(42vh,380px)] overflow-y-auto lg:max-h-[520px]">
               <RetailList
                 items={filtered}
                 selectedId={selected?.id ?? null}
-                onSelect={(loc) => setSelected(loc)}
+                onSelect={selectLocation}
                 emptyLabel={t('home.retail.empty')}
               />
             </div>
-          </div>
-
-          <div className="relative z-0 isolate min-h-[360px] overflow-hidden lg:min-h-[520px]">
-            <RetailLeafletMap selected={selected} onSelect={setSelected} filtered={filtered} />
           </div>
         </div>
       </div>

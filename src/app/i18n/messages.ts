@@ -54,6 +54,8 @@ const fr = {
     'Chaque sachet représente un point où vous trouverez les produits de Nyra. Cliquez sur la carte ou la liste pour trouver la pharmacie la plus proche.',
   'home.retail.search': 'Rechercher une pharmacie ou une ville…',
   'home.retail.empty': 'Aucun point de vente trouvé.',
+  'home.retail.count': '{count} pharmacie',
+  'home.retail.count_plural': '{count} pharmacies',
   'seo.retail.title': 'Points de vente',
   'seo.retail.description': 'Pharmacies partenaires Secret de Nyra au Sénégal.',
 
@@ -169,6 +171,8 @@ const en: Record<keyof typeof fr, string> = {
     'Each sachet represents a location where you will find Nyra products. Click the map or the list to find the closest pharmacy.',
   'home.retail.search': 'Search a pharmacy or city…',
   'home.retail.empty': 'No retail location found.',
+  'home.retail.count': '{count} pharmacy',
+  'home.retail.count_plural': '{count} pharmacies',
   'seo.retail.title': 'Retail locations',
   'seo.retail.description': 'Secret de Nyra partner pharmacies in Senegal.',
 

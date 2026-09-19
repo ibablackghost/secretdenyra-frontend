@@ -129,3 +129,9 @@
   height: 2.25rem;
   object-fit: contain;
 }
+
+.sdn-retail-list {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
