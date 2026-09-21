@@ -66,13 +66,8 @@ export const Footer = () => {
                 <a href="tel:+221778464929" className="hover:text-[#a4a374] transition-colors">
                   (+221) 77 846 49 29
                 </a>
-                <a
-                  href="https://wa.me/221778464929"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-[#a4a374] transition-colors"
-                >
-                  WhatsApp (+221) 77 846 49 29
+                <a href="tel:+221711114449" className="hover:text-[#a4a374] transition-colors">
+                  (+221) 71 111 44 49
                 </a>
               </div>
             </div>
