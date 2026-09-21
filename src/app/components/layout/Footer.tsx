@@ -60,9 +60,21 @@ export const Footer = () => {
               <MapPin className="w-5 h-5 text-gray-500" />
               <span>Dakar, Sénégal</span>
             </div>
-            <div className="flex items-center gap-3">
-              <Phone className="w-5 h-5 text-gray-500" />
-              <span>(+221) 33 820 13 13 - (+221) 33 822 54 85</span>
+            <div className="flex items-start gap-3">
+              <Phone className="mt-0.5 w-5 h-5 shrink-0 text-gray-500" />
+              <div className="flex flex-col gap-1">
+                <a href="tel:+221778464929" className="hover:text-[#a4a374] transition-colors">
+                  (+221) 77 846 49 29
+                </a>
+                <a
+                  href="https://wa.me/221778464929"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-[#a4a374] transition-colors"
+                >
+                  WhatsApp (+221) 77 846 49 29
+                </a>
+              </div>
             </div>
           </div>
 
