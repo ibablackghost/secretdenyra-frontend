@@ -83,6 +83,11 @@ export const RETAIL_LOCATIONS: RetailLocation[] = [
   { id: 'sdn-73', name: 'Pharmacie Keur Momar Sarr', locality: 'Louga', lat: 15.6226, lng: -16.2256 },
   { id: 'sdn-74', name: 'Pharmacie Inchallah', locality: 'Kaolack', lat: 14.1534, lng: -16.0726 },
   { id: 'sdn-75', name: 'Pharmacie Khadim Rassoul', locality: 'Thiès', lat: 14.794037, lng: -16.92378 },
+  { id: 'sdn-76', name: 'Pharmacie Mame Cheikh Mbaye', locality: 'Louga', lat: 15.6248, lng: -16.2218 },
+  { id: 'sdn-77', name: 'Pharmacie Sokha Awa', locality: 'Kaolack', lat: 14.1574, lng: -16.0686 },
+  { id: 'sdn-78', name: 'Pharmacie Diass', locality: 'Diass', lat: 14.651, lng: -17.073 },
+  { id: 'sdn-79', name: 'Pharmacie Fa Keita', locality: 'Dieuppeul', lat: 14.7164, lng: -17.4552 },
+  { id: 'sdn-80', name: 'Pharmacie Ndramé Escale', locality: 'Kaolack', lat: 14.1494, lng: -16.0766 },
 ];
 
 export const RETAIL_MAP_CENTER = { lat: 14.75, lng: -16.45 } as const;
